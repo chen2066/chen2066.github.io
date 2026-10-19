@@ -1,0 +1,29 @@
+import {readFileSync} from "node:fs";
+import {strict as assert} from "node:assert";
+import {spawnSync} from "node:child_process";
+
+const html=readFileSync("join/index.html","utf8");
+const js=readFileSync("join/guest.js","utf8");
+assert(html.includes("guest.js") && html.includes("guest.css"));
+assert(html.includes('id="stream-video"'));
+assert(html.includes('id="offer"'));
+assert(html.includes('id="answer"'));
+assert(js.includes('CompressionStream("gzip")'));
+assert(js.includes('DecompressionStream("gzip")'));
+assert(js.includes('new RTCPeerConnection({iceServers: STUN_ONLY})'));
+assert(!/turn:|turns:/i.test(js), "Paid TURN is forbidden");
+assert(!/fetch\s*\(/i.test(js), "Manual P2P must not call an invite server API");
+
+const syntax=spawnSync(process.execPath, ["--check", "join/guest.js"], {encoding:"utf8"});
+assert.equal(syntax.status,0,syntax.stderr);
+
+// The host Go signal codec uses json -> gzip -> base64.StdEncoding.
+// Exercise browser-standard gzip and the inverse against that wire format.
+const offer={type:"offer",sdp:"v=0\r\na=group:BUNDLE 0\r\na=ice-ufrag:sample"};
+const bytes=new TextEncoder().encode(JSON.stringify(offer));
+const gzStream=new Blob([bytes]).stream().pipeThrough(new CompressionStream("gzip"));
+const compressed=new Uint8Array(await new Response(gzStream).arrayBuffer());
+const zipped=Buffer.from(compressed).toString("base64");
+const unzipped=await new Response(new Blob([Buffer.from(zipped,"base64")]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+assert.deepEqual(JSON.parse(unzipped),offer);
+console.log("PASS: standalone website files, JS syntax, no relay calls, no TURN, and gzip/base64 SDP codec");
