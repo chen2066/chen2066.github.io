@@ -1,0 +1,51 @@
+name: Publish Darkest Reflex Remote P2 Browser Guest
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'join/**'
+      - 'LICENSE'
+      - '.github/workflows/pages.yml'
+      - '.github/tests/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout guest-only site
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate standalone WebRTC guest and codec
+        run: node .github/tests/site.mjs
+      - name: Stage only public guest content
+        run: |
+          mkdir -p _publish/join
+          cp index.html LICENSE _publish/
+          cp join/index.html join/guest.js join/guest.css _publish/join/
+          touch _publish/.nojekyll
+          test -s _publish/join/guest.js
+      - uses: actions/configure-pages@v5
+      - name: Upload public website
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _publish
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
