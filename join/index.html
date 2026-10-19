@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' stun:; media-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Darkest Reflex · Remote Co-op P2</title>
+  <link rel="stylesheet" href="/join/guest.css">
+  <script defer type="module" src="/join/guest.js"></script>
+</head>
+<body>
+  <main class="frame">
+    <header>
+      <div class="sigil" aria-hidden="true">✥</div>
+      <p class="eyebrow">A DARKER KIND OF FELLOWSHIP</p>
+      <h1>DARKEST REFLEX</h1>
+      <p class="subtitle" data-ko="원격 동행 · 두 번째 영웅" data-en="REMOTE CO-OP · PLAYER TWO">원격 동행 · 두 번째 영웅</p>
+      <div class="divider" aria-hidden="true">◆</div>
+    </header>
+    <p class="description" data-ko="이 브라우저에서만 친구의 던전을 조작합니다. 데스크톱 조작은 지원하지 않습니다." data-en="Control only your companion’s dungeon from this browser. Desktop control is not supported.">이 브라우저에서만 친구의 던전을 조작합니다. 데스크톱 조작은 지원하지 않습니다.</p>
+    <p id="status" class="status" aria-live="polite">초대장을 확인하고 있습니다...</p>
+    <section id="manual" hidden>
+      <div class="step"><label for="offer" data-ko="① 아래 요청 코드를 복사해 호스트에게 보내세요." data-en="① Copy your request and send it privately to the host.">① 아래 요청 코드를 복사해 호스트에게 보내세요.</label>
+        <textarea id="offer" readonly rows="3" spellcheck="false"></textarea>
+        <button id="copyOffer" data-ko="요청 코드 복사" data-en="COPY REQUEST">요청 코드 복사</button>
+      </div>
+      <div class="step"><label for="answer" data-ko="② 호스트가 보내준 응답 코드를 붙여넣으세요." data-en="② Paste the response received from the host.">② 호스트가 보내준 응답 코드를 붙여넣으세요.</label>
+        <textarea id="answer" rows="3" spellcheck="false" autocomplete="off" placeholder="Darkest Reflex response"></textarea>
+        <button id="connect" disabled data-ko="던전 입장" data-en="ENTER THE DUNGEON">던전 입장</button>
+      </div>
+    </section>
+    <section id="gamePanel" hidden>
+      <div class="videoHeader"><strong data-ko="P2 원격 게임 화면" data-en="REMOTE GAME · P2">P2 원격 게임 화면</strong><span id="peerStatus"></span></div>
+      <div id="mouse-element" tabindex="0" aria-label="Game-only mouse and keyboard target">
+        <video id="stream-video" autoplay playsinline></video>
+        <div id="awaitStream" data-ko="호스트의 게임 화면을 기다리는 중..." data-en="Waiting for the host game stream...">호스트의 게임 화면을 기다리는 중...</div>
+      </div>
+      <p class="notice" data-ko="게임 화면을 클릭하면 P2 조작이 활성화됩니다. ESC로 키보드 포커스를 해제하세요." data-en="Click the game to enable P2 controls. Press Escape to release keyboard focus.">게임 화면을 클릭하면 P2 조작이 활성화됩니다. ESC로 키보드 포커스를 해제하세요.</p>
+      <div class="actions"><button id="sound" hidden data-ko="게임 소리 켜기" data-en="ENABLE GAME SOUND">게임 소리 켜기</button><button id="disconnect" data-ko="연결 종료" data-en="DISCONNECT">연결 종료</button></div>
+    </section>
+    <p id="error" class="error" role="alert" hidden></p>
+    <button id="retry" class="secondary" hidden data-ko="다시 연결" data-en="RETRY CONNECTION">다시 연결</button>
+    <p class="privacy" data-ko="연결 코드는 IP 주소가 포함될 수 있으므로 친구에게만 보내세요. 별도 계정, 설치, 유료 TURN 중계가 필요하지 않습니다. 연결 불가능한 네트워크에서는 접속이 실패할 수 있습니다." data-en="Connection codes may contain IP addresses; share privately. No guest account, installation, or paid TURN. Some network combinations cannot connect without relays.">연결 코드는 IP 주소가 포함될 수 있으므로 친구에게만 보내세요. 별도 계정, 설치, 유료 TURN 중계가 필요하지 않습니다. 연결 불가능한 네트워크에서는 접속이 실패할 수 있습니다.</p>
+  </main>
+  <footer>Darkest Reflex · P2P browser guest · <a href="/LICENSE">Source license</a></footer>
+</body>
+</html>
