@@ -125,6 +125,7 @@ function resetMedia() {
   for (const track of media.getTracks()) media.removeTrack(track);
   video.srcObject = null;
   $("awaitStream").hidden = false;
+  $("retryVideo").hidden = true;
 }
 function releaseControls() {
   for (const key of heldKeys) send(keyboard, key + "_0");
@@ -232,6 +233,7 @@ async function startMedia() {
     const revealVideo = () => {
       if (mediaPeer !== current) return;
       $("awaitStream").hidden = true;
+      $("retryVideo").hidden = true;
       $("peerStatus").textContent = "video: receiving";
       state(ko ? "동료의 게임 화면을 수신하고 있습니다." : "Receiving host game video", true);
     };
@@ -252,6 +254,7 @@ async function startMedia() {
     if (current.connectionState === "failed" || current.connectionState === "closed") {
       state(ko ? "영상 연결이 중단됐습니다." : "Video connection lost");
       $("awaitStream").hidden = false;
+      $("retryVideo").hidden = false;
     }
   });
   let attempts = 0;
@@ -262,6 +265,7 @@ async function startMedia() {
     if (attempts++ >= 30) {
       clearInterval(streamRequest);
       $("peerStatus").textContent = "video: host did not offer";
+      $("retryVideo").hidden = false;
       state(ko ? "P2 입력은 연결됐지만 영상 요청에 응답이 없습니다. 호스트에서 ‘게임 영상 다시 시작’을 눌러 주세요."
                 : "P2 controls connected, but no video offer received. Ask host to press Restart Game Video.");
       return;
@@ -408,6 +412,12 @@ $("copyOffer").addEventListener("click", async () => {
 $("connect").addEventListener("click", () => {void applyAnswer();});
 $("retry").addEventListener("click", () => {void prepare();});
 $("sound").addEventListener("click", () => {void ensureSound();});
+$("retryVideo").addEventListener("click", () => {
+  if (!active) return;
+  resetMedia();
+  $("error").hidden = true;
+  void startMedia();
+});
 $("disconnect").addEventListener("click", () => {
   disconnect();
   state(ko ? "연결을 종료했습니다." : "Disconnected");
