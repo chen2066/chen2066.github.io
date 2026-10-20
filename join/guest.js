@@ -26,6 +26,34 @@ let pendingMediaCandidates = [];
 const heldKeys = new Set();
 const media = new MediaStream();
 const video = $("stream-video");
+let fpsSince=0,lastPresented=0,fpsActive=false;
+function frameMetrics(timestamp,metadata){
+  if(!fpsSince){fpsSince=timestamp;lastPresented=metadata.presentedFrames;}
+  if(timestamp-fpsSince>=1000){
+    const fps=Math.max(0,Math.round((metadata.presentedFrames-lastPresented)*10000/(timestamp-fpsSince))/10);
+    $("actualFps").textContent=(Number.isFinite(fps)?fps.toFixed(1):'--')+' FPS · '+video.videoWidth+'×'+video.videoHeight;
+    fpsSince=timestamp;lastPresented=metadata.presentedFrames;
+  }
+  if(!document.hidden&&video.srcObject&&typeof video.requestVideoFrameCallback==='function')
+    video.requestVideoFrameCallback(frameMetrics);
+  else fpsActive=false;
+}
+function startFrameMetrics(){
+  if(fpsActive||typeof video.requestVideoFrameCallback!=='function')return;
+  fpsActive=true;fpsSince=0;lastPresented=0;
+  video.requestVideoFrameCallback(frameMetrics);
+}
+$("expandVideo").addEventListener("click",()=>{
+  document.body.classList.toggle("reflex-theater");
+  $("expandVideo").textContent=document.body.classList.contains("reflex-theater")
+    ?(ko?"밀서 보기":"SHOW LETTER"):(ko?"넓게 보기":"THEATER");
+});
+$("fullscreenVideo").addEventListener("click",()=>{
+  const surface=$("mouse-element");
+  if(document.fullscreenElement)void document.exitFullscreen();
+  else if(surface.requestFullscreen)void surface.requestFullscreen();
+});
+
 
 function translate() {
   document.documentElement.lang = ko ? "ko" : "en";
@@ -124,6 +152,7 @@ function resetMedia() {
   mediaPeer = null;
   for (const track of media.getTracks()) media.removeTrack(track);
   video.srcObject = null;
+  fpsActive=false;fpsSince=0;$("actualFps").textContent="FPS --";
   $("awaitStream").hidden = false;
   $("retryVideo").hidden = true;
 }
@@ -243,6 +272,7 @@ async function startMedia() {
     // A track event only means SDP negotiation, not that a decoded frame
     // arrived. Retain the waiting overlay until the video actually plays.
     const revealVideo = () => {
+      startFrameMetrics();
       if (mediaPeer !== current) return;
       $("awaitStream").hidden = true;
       $("retryVideo").hidden = true;
