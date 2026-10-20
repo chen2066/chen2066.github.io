@@ -20,19 +20,19 @@
       <div class="sigil" aria-hidden="true">✥</div>
       <p class="eyebrow">A DARKER KIND OF FELLOWSHIP</p>
       <h1>DARKEST REFLEX</h1>
-      <p class="subtitle" data-ko="원격 동행 · 두 번째 영웅" data-en="REMOTE CO-OP · PLAYER TWO">원격 동행 · 두 번째 영웅</p>
+      <p class="subtitle" data-ko="협력 원정 · 두 번째 영웅" data-en="REMOTE CO-OP · PLAYER TWO">협력 원정 · 두 번째 영웅</p>
       <div class="divider" aria-hidden="true">◆</div>
     </header>
-    <p class="description" data-ko="이 브라우저에서만 친구의 던전을 조작합니다. 데스크톱 조작은 지원하지 않습니다." data-en="Control only your companion’s dungeon from this browser. Desktop control is not supported.">이 브라우저에서만 친구의 던전을 조작합니다. 데스크톱 조작은 지원하지 않습니다.</p>
+    <p class="description" data-ko="이 초대장으로 다른 가주의 원정에 합류합니다. 호스트의 바탕화면은 조작할 수 없습니다." data-en="Join another house's expedition. You cannot control the host's desktop.">이 초대장으로 다른 가주의 원정에 합류합니다. 호스트의 바탕화면은 조작할 수 없습니다.</p>
     <p id="status" class="status" aria-live="polite">초대장을 확인하고 있습니다...</p>
     <section id="manual" hidden>
-      <div class="step"><label for="offer" data-ko="① 아래 요청 코드를 복사해 호스트에게 보내세요." data-en="① Copy your request and send it privately to the host.">① 아래 요청 코드를 복사해 호스트에게 보내세요.</label>
+      <div class="step"><label for="offer" data-ko="첫째 서신. 협력 요청서를 필사해 가주에게 전하십시오." data-en="First letter. Copy your petition and deliver it to the host.">첫째 서신. 협력 요청서를 필사해 가주에게 전하십시오.</label>
         <textarea id="offer" readonly rows="3" spellcheck="false"></textarea>
-        <button id="copyOffer" data-ko="요청 코드 복사" data-en="COPY REQUEST">요청 코드 복사</button>
+        <button id="copyOffer" data-ko="협력 요청서 필사" data-en="COPY PETITION">협력 요청서 필사</button>
       </div>
-      <div class="step"><label for="answer" data-ko="② 호스트가 보내준 응답 코드를 붙여넣으세요." data-en="② Paste the response received from the host.">② 호스트가 보내준 응답 코드를 붙여넣으세요.</label>
+      <div class="step"><label for="answer" data-ko="둘째 서신. 가주가 돌려보낸 회답서의 원문을 붙여 넣으십시오." data-en="Second letter. Paste the sealed reply from the host.">둘째 서신. 가주가 돌려보낸 회답서의 원문을 붙여 넣으십시오.</label>
         <textarea id="answer" rows="3" spellcheck="false" autocomplete="off" placeholder="Darkest Reflex response"></textarea>
-        <button id="connect" disabled data-ko="던전 입장" data-en="ENTER THE DUNGEON">던전 입장</button>
+        <button id="connect" disabled data-ko="원정에 합류" data-en="JOIN THE EXPEDITION">원정에 합류</button>
       </div>
     </section>
     <section id="gamePanel" hidden>
@@ -42,11 +42,11 @@
         <div id="awaitStream" data-ko="호스트의 게임 화면을 기다리는 중..." data-en="Waiting for the host game stream...">호스트의 게임 화면을 기다리는 중...</div>
       </div>
       <p class="notice" data-ko="게임 화면을 클릭하면 P2 조작이 활성화됩니다. ESC로 키보드 포커스를 해제하세요." data-en="Click the game to enable P2 controls. Press Escape to release keyboard focus.">게임 화면을 클릭하면 P2 조작이 활성화됩니다. ESC로 키보드 포커스를 해제하세요.</p>
-      <div class="actions"><button id="retryVideo" hidden data-ko="게임 영상 재연결" data-en="RECONNECT GAME VIDEO">게임 영상 재연결</button><button id="sound" hidden data-ko="게임 소리 켜기" data-en="ENABLE GAME SOUND">게임 소리 켜기</button><button id="disconnect" data-ko="연결 종료" data-en="DISCONNECT">연결 종료</button></div>
+      <div class="actions"><button id="retryVideo" hidden data-ko="원정 영상 재개" data-en="REOPEN EXPEDITION VISION">원정 영상 재개</button><button id="sound" hidden data-ko="원정의 소리 듣기" data-en="HEAR EXPEDITION AUDIO">원정의 소리 듣기</button><button id="disconnect" data-ko="동행 마치기" data-en="END FELLOWSHIP">동행 마치기</button></div>
     </section>
     <p id="error" class="error" role="alert" hidden></p>
-    <button id="retry" class="secondary" hidden data-ko="다시 연결" data-en="RETRY CONNECTION">다시 연결</button>
-    <p class="privacy" data-ko="연결 코드는 IP 주소가 포함될 수 있으므로 친구에게만 보내세요. 별도 계정, 설치, 유료 TURN 중계가 필요하지 않습니다. 연결 불가능한 네트워크에서는 접속이 실패할 수 있습니다." data-en="Connection codes may contain IP addresses; share privately. No guest account, installation, or paid TURN. Some network combinations cannot connect without relays.">연결 코드는 IP 주소가 포함될 수 있으므로 친구에게만 보내세요. 별도 계정, 설치, 유료 TURN 중계가 필요하지 않습니다. 연결 불가능한 네트워크에서는 접속이 실패할 수 있습니다.</p>
+    <button id="retry" class="secondary" hidden data-ko="연결 다시 맺기" data-en="REJOIN THE EXPEDITION">연결 다시 맺기</button>
+    <p class="privacy" data-ko="주의. 서신에는 서로의 네트워크 주소가 담길 수 있습니다. 신뢰하는 가주에게만 전하십시오. 일부 환경에서는 협력 연결이 성립하지 않을 수 있습니다." data-en="These letters may reveal network addresses. Share only with a trusted house. Some network combinations cannot establish a connection.">주의. 서신에는 서로의 네트워크 주소가 담길 수 있습니다. 신뢰하는 가주에게만 전하십시오. 일부 환경에서는 협력 연결이 성립하지 않을 수 있습니다.</p>
   </main>
   <footer>Darkest Reflex · P2P browser guest · <a href="/LICENSE">Source license</a></footer>
 </body>

@@ -230,7 +230,7 @@ async function ensureSound() {
 }
 async function startMedia() {
   if (mediaPeer || !active || streamSignal?.readyState !== "open") return;
-  state(ko ? "P2 연결됨 · 호스트의 게임 화면을 요청하는 중..." : "P2 connected · requesting game video...", true);
+  state(ko ? "협력자 연결됨 · 원정의 광경을 요청하는 중..." : "P2 connected · requesting game video...", true);
   $("peerStatus").textContent = "video: requesting";
   mediaPeer = new RTCPeerConnection({iceServers: STUN_ONLY});
   const current = mediaPeer;
@@ -247,7 +247,7 @@ async function startMedia() {
       $("awaitStream").hidden = true;
       $("retryVideo").hidden = true;
       $("peerStatus").textContent = "video: receiving";
-      state(ko ? "동료의 게임 화면을 수신하고 있습니다." : "Receiving host game video", true);
+      state(ko ? "협력자의 원정 광경을 수신하고 있습니다." : "Receiving host game video", true);
     };
     video.addEventListener("loadeddata", revealVideo, {once:true});
     event.track.addEventListener("unmute", revealVideo, {once:true});
@@ -264,7 +264,7 @@ async function startMedia() {
   current.addEventListener("connectionstatechange", () => {
     $("peerStatus").textContent = current.connectionState;
     if (current.connectionState === "failed" || current.connectionState === "closed") {
-      state(ko ? "영상 연결이 중단됐습니다." : "Video connection lost");
+      state(ko ? "원정의 광경이 끊어졌습니다." : "Video connection lost");
       $("awaitStream").hidden = false;
       $("retryVideo").hidden = false;
     }
@@ -278,7 +278,7 @@ async function startMedia() {
       clearInterval(streamRequest);
       $("peerStatus").textContent = "video: host did not offer";
       $("retryVideo").hidden = false;
-      state(ko ? "P2 입력은 연결됐지만 영상 요청에 응답이 없습니다. 호스트에서 ‘게임 영상 다시 시작’을 눌러 주세요."
+      state(ko ? "협력자의 조작 통로는 열렸으나 영상이 도착하지 않았습니다. 가주에게 ‘원정 영상 재개’를 요청하십시오."
                 : "P2 controls connected, but no video offer received. Ask host to press Restart Game Video.");
       return;
     }
@@ -358,7 +358,7 @@ async function prepare() {
   disconnect();
   try {
     validate();
-    state(ko ? "직접 연결 요청을 준비하는 중..." : "Creating direct P2P request...");
+    state(ko ? "협력 요청서를 작성하는 중..." : "Creating direct P2P request...");
     peer = new RTCPeerConnection({iceServers: STUN_ONLY});
     peer.addEventListener("connectionstatechange", () => {
       if (!peer) return;
@@ -367,10 +367,10 @@ async function prepare() {
         active = true;
         $("manual").hidden = true;
         $("gamePanel").hidden = false;
-        state(ko ? "동료와 직접 연결됐습니다." : "Connected directly to host", true);
+        state(ko ? "협력자와 연결됐습니다." : "Connected directly to host", true);
         if (streamSignal?.readyState === "open") void startMedia();
       } else if (cs === "failed" || cs === "closed" || cs === "disconnected") {
-        if (active) {releaseControls(); state(ko ? "동료 연결이 끊겼습니다." : "Host connection interrupted");}
+        if (active) {releaseControls(); state(ko ? "협력자와의 연결이 끊겼습니다." : "Host connection interrupted");}
       }
     });
     peer.createDataChannel("controller");
@@ -390,7 +390,7 @@ async function prepare() {
     $("offer").value = JSON.stringify({version: 1, session, kind: "offer", signal: description + ";" + candidates});
     $("manual").hidden = false;
     $("connect").disabled = false;
-    state(ko ? "① 요청 코드를 호스트에게 보내세요." : "① Send your request to the host");
+    state(ko ? "① 협력 요청서를 가주에게 전하십시오." : "① Send your request to the host");
   } catch (error) {
     disconnect();
     failure(error);
@@ -427,10 +427,10 @@ $("answer").addEventListener("input", () => $("connect").disabled = !$("answer")
 $("copyOffer").addEventListener("click", async () => {
   try {
     await navigator.clipboard.writeText($("offer").value);
-    state(ko ? "요청 복사 완료. 호스트에게 보내세요." : "Request copied. Send to host.");
+    state(ko ? "청원서를 필사했습니다. 가주에게 전하십시오." : "Request copied. Send to host.");
   } catch {
     $("offer").select();
-    state(ko ? "복사가 차단됐습니다. 요청 코드를 직접 복사하세요." : "Clipboard blocked. Select and copy the request.");
+    state(ko ? "자동 필사가 막혔습니다. 요청 서신을 직접 복사하십시오." : "Clipboard blocked. Select and copy the request.");
   }
 });
 $("connect").addEventListener("click", () => {void applyAnswer();});
@@ -444,7 +444,7 @@ $("retryVideo").addEventListener("click", () => {
 });
 $("disconnect").addEventListener("click", () => {
   disconnect();
-  state(ko ? "연결을 종료했습니다." : "Disconnected");
+  state(ko ? "동행을 마쳤습니다." : "Disconnected");
   $("retry").hidden = false;
 });
 document.addEventListener("keydown", onKeyDown, true);
