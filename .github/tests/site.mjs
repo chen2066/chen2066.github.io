@@ -4,6 +4,7 @@ import {spawnSync} from "node:child_process";
 
 const html=readFileSync("join/index.html","utf8");
 const js=readFileSync("join/guest.js","utf8");
+const css=readFileSync("join/guest.css","utf8");
 assert(html.includes("guest.js") && html.includes("guest.css"));
 assert(html.includes('id="stream-video"'));
 assert(html.includes('id="offer"'));
