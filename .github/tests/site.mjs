@@ -45,3 +45,9 @@ console.log("PASS: standalone website files, JS syntax, no relay calls, no TURN,
 assert(html.includes('id="p2VirtualCursor"'),"P2 game-local pointer overlay required");
 assert(css.includes("#p2VirtualCursor")&&css.includes("pointer-events:none"),"P2 cursor must never intercept actual browser click events");
 assert(js.includes('indicator.style.left='),"Visible P2 marker must follow normalized video pointer");
+
+assert(html.includes('id="gameAckCursor"')&&html.includes('id="gameAckState"'),"Native game ACK marker and status required");
+assert(js.includes('mouse.onmessage = event')&&js.includes('showGameAckCursor(event.data)'),"ACK must arrive from game input channel");
+assert(js.includes('RFA1:')&&js.includes('seq<=ackSequence'),"Reject malformed/replayed ACKs");
+assert(js.includes('media.getAudioTracks().find'),"Check actual incoming audio track");
+assert(html.includes('id="audioState"'),"Expose audio playback state");
