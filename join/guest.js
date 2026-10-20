@@ -157,6 +157,9 @@ function resetMedia() {
   $("retryVideo").hidden = true;
 }
 function releaseControls() {
+  $("p2VirtualPointer").hidden=true;
+  $("p2VirtualPointer").classList.remove("press");
+  $("mouse-element").classList.remove("p2-pointer-active");
   for (const key of heldKeys) send(keyboard, key + "_0");
   heldKeys.clear();
   send(mouse, new Uint8Array([0, 0, 1]));
@@ -213,10 +216,23 @@ function pointerAt(event){
     y:Math.max(0,Math.min(10000,Math.round((event.clientY-y0)/vh*10000)))
   };
 }
+// Mirror the transmitted 0..10000 cursor coordinate on top of the game.
+ // This shows what the browser SENT, not an unverified claim the game clicked.
+function drawP2Pointer(point){
+ const marker=$("p2VirtualPointer"),surface=$("mouse-element");
+ const r=video.getBoundingClientRect(),outer=surface.getBoundingClientRect();
+ const ratio=Math.min(r.width/video.videoWidth,r.height/video.videoHeight);
+ const w=video.videoWidth*ratio,h=video.videoHeight*ratio;
+ marker.style.left=(r.left-outer.left+(r.width-w)/2+point.x*w/10000)+'px';
+ marker.style.top=(r.top-outer.top+(r.height-h)/2+point.y*h/10000)+'px';
+ marker.hidden=false;
+ surface.classList.add('p2-pointer-active');
+}
 function sendMove(event,force=false) {
   if (!active || mouse?.readyState !== "open") return false;
   const point=pointerAt(event);
   if(!point)return false;
+  drawP2Pointer(point);
   if(!force&&point.x===previousX&&point.y===previousY)return true;
   previousX=point.x;previousY=point.y;
   const data=new ArrayBuffer(9),v=new DataView(data);
@@ -231,6 +247,7 @@ function onClick(event) {
   if(event.type==="mousedown")$("mouse-element").focus();
   event.preventDefault();
   send(mouse,new Uint8Array([0,event.button,event.type==="mousedown"?0:1]));
+  $("p2VirtualPointer").classList.toggle("press",event.type==="mousedown");
 }
 function activateControls() {
   keyboard.onopen = () => {
@@ -239,6 +256,7 @@ function activateControls() {
   };
   keyboard.onclose = () => {clearInterval(heartbeat); releaseControls();};
   $("mouse-element").addEventListener("mousemove", sendMove);
+  $("mouse-element").addEventListener("mouseleave",()=>{$("p2VirtualPointer").hidden=true;$("mouse-element").classList.remove("p2-pointer-active")});
   $("mouse-element").addEventListener("mousedown", onClick);
   $("mouse-element").addEventListener("mouseup", onClick);
   $("mouse-element").addEventListener("contextmenu", event => event.preventDefault());
