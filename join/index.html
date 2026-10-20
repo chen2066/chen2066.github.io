@@ -36,10 +36,11 @@
       </div>
     </section>
     <section id="gamePanel" hidden>
-      <div class="videoHeader"><strong data-ko="협력자의 원정 화면" data-en="ALLY GAME · P2">협력자의 원정 화면</strong><div class="videoTools"><span id="actualFps" role="status" aria-live="off">FPS --</span><button type="button" id="expandVideo" data-ko="넓게 보기" data-en="THEATER">넓게 보기</button><button type="button" id="fullscreenVideo" data-ko="전체 화면" data-en="FULLSCREEN">전체 화면</button><span id="audioStatus" role="status">소리: 오디오 트랙 미도착</span><span id="peerStatus"></span></div></div>
+      <div class="videoHeader"><strong data-ko="협력자의 원정 화면" data-en="ALLY GAME · P2">협력자의 원정 화면</strong><div class="videoTools"><span id="actualFps" role="status" aria-live="off">FPS --</span><button type="button" id="expandVideo" data-ko="넓게 보기" data-en="THEATER">넓게 보기</button><button type="button" id="fullscreenVideo" data-ko="전체 화면" data-en="FULLSCREEN">전체 화면</button><span id="audioStatus" role="status">소리: 오디오 트랙 미도착</span><span id="p2AckStatus" role="status">P2: 게임 입력 확인 대기</span><span id="peerStatus"></span></div></div>
       <div id="mouse-element" tabindex="0" aria-label="Game-only mouse and keyboard target">
         <video id="stream-video" autoplay playsinline></video>
         <div id="p2VirtualCursor" aria-hidden="true" hidden><span>P2</span></div>
+        <div id="p2NativeCursor" aria-hidden="true" hidden><span>게임 P2</span></div>
         <div id="p2VirtualPointer" hidden aria-hidden="true"><span class="p2-pointer-core"></span><span class="p2-pointer-name">P2</span></div>
         <div id="awaitStream" data-ko="호스트의 게임 화면을 기다리는 중..." data-en="Waiting for the host game stream...">호스트의 게임 화면을 기다리는 중...</div>
       </div>
