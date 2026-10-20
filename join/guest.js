@@ -27,6 +27,30 @@ const heldKeys = new Set();
 const media = new MediaStream();
 const video = $("stream-video");
 let fpsSince=0,lastPresented=0,fpsActive=false;
+let ackSequence=0,lastGameAck=0;
+function showGameAckCursor(text){
+ if(typeof text!=="string"||!text.startsWith("RFA1:"))return;
+ const parts=text.split(":");if(parts.length!==8)return;
+ const v=parts.slice(1).map(Number);
+ if(v.some(n=>!Number.isSafeInteger(n)||n<0||n>4294967295))return;
+ const [seq,x,y,w,h,flags,buttons]=v;
+ if(seq<=ackSequence||w<160||h<120||w>8192||h>8192||x>w||y>h)return;
+ ackSequence=seq;lastGameAck=Date.now();
+ const rect=video.getBoundingClientRect(),outer=$("mouse-element").getBoundingClientRect();
+ if(video.videoWidth<2||video.videoHeight<2||rect.width<=0||rect.height<=0)return;
+ const scale=Math.min(rect.width/video.videoWidth,rect.height/video.videoHeight);
+ const vw=video.videoWidth*scale,vh=video.videoHeight*scale;
+ const marker=$("gameAckCursor");
+ marker.hidden=false;
+ marker.style.left=rect.left-outer.left+(rect.width-vw)/2+(x/w)*vw+"px";
+ marker.style.top=rect.top-outer.top+(rect.height-vh)/2+(y/h)*vh+"px";
+ marker.classList.toggle("confirmed",!!(buttons&2));
+ $("gameAckState").textContent=(ko?"게임 ACK ":"Game ACK ")+seq+((flags&1)?" · P2 활성":" · P2 모드 꺼짐");
+}
+setInterval(()=>{if(active&&lastGameAck&&Date.now()-lastGameAck>3000){
+ $("gameAckState").textContent=ko?"게임 응답 지연 · P2 경로 확인":"No recent game ACK";
+ $("gameAckCursor").hidden=true;
+}},1500);
 function frameMetrics(timestamp,metadata){
   if(!fpsSince){fpsSince=timestamp;lastPresented=metadata.presentedFrames;}
   if(timestamp-fpsSince>=1000){
@@ -174,7 +198,8 @@ function disconnect() {
   if (peer) peer.close();
   peer = null;
   keyboard = null; mouse = null; streamSignal = null;
-  previousX=-1;previousY=-1;
+  previousX=-1;previousY=-1;ackSequence=0;lastGameAck=0;
+  $("gameAckCursor").hidden=true;$("gameAckState").textContent=ko?"P2: 수신 확인 대기":"P2: waiting for ACK";
   $("p2VirtualCursor").hidden=true;$("p2VirtualCursor").classList.remove("pressed");
   $("gamePanel").hidden = true;
 }
@@ -257,6 +282,9 @@ function onClick(event) {
   $("p2VirtualPointer").classList.toggle("press",event.type==="mousedown");
 }
 function activateControls() {
+  mouse.onmessage = event => {
+    if(typeof event.data==="string")showGameAckCursor(event.data);
+  };
   keyboard.onopen = () => {
     heartbeat = setInterval(() => send(keyboard, "alive_1"), 750);
     send(keyboard, "alive_1");
@@ -271,15 +299,19 @@ function activateControls() {
 async function ensureSound() {
   video.muted = false;
   video.volume = 1;
+  const audioTrack=media.getAudioTracks().find(t=>t.readyState==="live");
+  $("audioState").textContent=audioTrack?(ko?"오디오 트랙 도착 · 재생 허용 확인 중":"Audio received · verifying playback"):(ko?"오디오 트랙 없음 · 호스트 확인":"No audio track · check host");
   try {
     await video.play();
     $("sound").hidden = false;
-    $("sound").textContent = ko ? "게임 소리 켜짐" : "GAME AUDIO ON";
+    $("sound").textContent = ko ? "소리 다시 확인" : "RECHECK AUDIO";
+    $("audioState").textContent=audioTrack?(ko?"오디오 트랙 연결 · 재생 허용 (음량 미검증)":"Audio playback allowed (level unverified)"):(ko?"호스트에서 소리 트랙을 전송하지 않음":"No audio track sent by host");
   } catch {
     video.muted = true;
     await video.play().catch(() => {});
     $("sound").hidden = false;
-    $("sound").textContent = ko ? "게임 소리 켜기" : "ENABLE GAME SOUND";
+    $("sound").textContent = ko ? "원정의 소리 듣기" : "HEAR EXPEDITION AUDIO";
+    $("audioState").textContent=ko?"브라우저 자동재생 차단 · 눌러서 재시도":"Autoplay blocked · click to retry";
   }
 }
 async function startMedia() {
@@ -306,6 +338,7 @@ async function startMedia() {
     };
     video.addEventListener("loadeddata", revealVideo, {once:true});
     event.track.addEventListener("unmute", revealVideo, {once:true});
+    $("audioState").textContent=event.track.kind==="audio"?(ko?"오디오 트랙 도착 · 재생 확인 중":"Audio track received"):(ko?"영상 연결 · 오디오 트랙 대기":"Video connected · waiting for audio");
     void ensureSound();
   });
   current.addEventListener("icecandidate", event => {
