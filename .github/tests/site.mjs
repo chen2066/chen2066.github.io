@@ -19,6 +19,11 @@ assert(css.includes("pointer-events:none"),"P2 cursor overlay must never interce
 assert(js.includes("v.setUint16(5,10000)"),"Normalized dimensions must match game IPC");
 assert(html.includes('id="guestLetter"')&&html.includes('id="guestClassic"'),"Both themes must be selectable");
 assert(js.includes("setTheme(initialTheme)"),"Theme preference must be restorable");
+assert(html.includes('id="audioStatus"'),"Guest must show actual audio status");
+assert(js.includes("new MediaStream([event.track])"),"Audio playback must isolate the game-only audio track");
+assert(js.includes("r.type==='inbound-rtp'&&r.kind==='audio'"),"Guest must distinguish audio packets received from no audio");
+assert(js.includes("await gameAudio.play()"),"Audio must require a real browser play operation");
+assert(js.includes("gameAudio.pause();gameAudio.srcObject=null"),"Guest must release audio on disconnect");
 assert(html.includes('id="fullscreenVideo"')&&html.includes('id="expandVideo"'),"Guest must expose larger and fullscreen viewing");
 assert(js.includes("requestVideoFrameCallback(frameMetrics)"),"Guest FPS must measure decoded frames, not promised FPS");
 assert(js.includes("document.fullscreenElement"),"Fullscreen must have a safe exit");
@@ -45,3 +50,8 @@ console.log("PASS: standalone website files, JS syntax, no relay calls, no TURN,
 assert(html.includes('id="p2VirtualCursor"'),"P2 game-local pointer overlay required");
 assert(css.includes("#p2VirtualCursor")&&css.includes("pointer-events:none"),"P2 cursor must never intercept actual browser click events");
 assert(js.includes('indicator.style.left='),"Visible P2 marker must follow normalized video pointer");
+
+assert(js.includes("mouse.onmessage = e => acceptGameCursorAck(e.data)"),"Game ACK must be delivered to guest");
+assert(js.includes("p2NativeCursor"),"Must distinguish native game cursor from transmitted browser target");
+assert(html.includes('id="p2AckStatus"'),"Guest ACK state must be visible");
+assert(css.includes('#p2NativeCursor')&&css.includes('pointer-events:none'),"Native cursor marker may not steal clicks");

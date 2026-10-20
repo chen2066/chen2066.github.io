@@ -26,6 +26,14 @@ let pendingMediaCandidates = [];
 const heldKeys = new Set();
 const media = new MediaStream();
 const video = $("stream-video");
+const gameAudio=document.createElement('audio');
+gameAudio.preload='none';gameAudio.volume=1;
+let remoteAudioTrack=false, audioPackets=0,audioStatTimer;
+function audioState(){
+ const tracks=gameAudio.srcObject instanceof MediaStream?gameAudio.srcObject.getAudioTracks():[];
+ $("audioStatus").textContent=!tracks.length?(ko?'오디오 트랙 미도착':'Audio track missing'):
+   gameAudio.paused?(ko?'소리 재생 대기':'Audio playback paused'):(ko?'소리 재생 중':'Audio playing');
+}
 let fpsSince=0,lastPresented=0,fpsActive=false;
 function frameMetrics(timestamp,metadata){
   if(!fpsSince){fpsSince=timestamp;lastPresented=metadata.presentedFrames;}
@@ -152,6 +160,9 @@ function resetMedia() {
   mediaPeer = null;
   for (const track of media.getTracks()) media.removeTrack(track);
   video.srcObject = null;
+  gameAudio.pause();gameAudio.srcObject=null;
+  remoteAudioTrack=false;clearInterval(audioStatTimer);audioStatTimer=undefined;
+  audioPackets=0;audioState();
   fpsActive=false;fpsSince=0;$("actualFps").textContent="FPS --";
   $("awaitStream").hidden = false;
   $("retryVideo").hidden = true;
@@ -176,6 +187,7 @@ function disconnect() {
   keyboard = null; mouse = null; streamSignal = null;
   previousX=-1;previousY=-1;
   $("p2VirtualCursor").hidden=true;$("p2VirtualCursor").classList.remove("pressed");
+  $("p2NativeCursor").hidden=true;$("p2AckStatus").textContent=ko?"P2: 게임 입력 확인 대기":"P2: awaiting game ACK";
   $("gamePanel").hidden = true;
 }
 function focusGame(event) {
@@ -256,7 +268,24 @@ function onClick(event) {
   send(mouse,new Uint8Array([0,event.button,event.type==="mousedown"?0:1]));
   $("p2VirtualPointer").classList.toggle("press",event.type==="mousedown");
 }
+function acceptGameCursorAck(raw){
+ if(typeof raw!=='string'||raw.length>160||!raw.startsWith('RFA1:'))return;
+ const p=raw.slice(5).split(':').map(Number);
+ if(p.length!==7||p.some(x=>!Number.isFinite(x)))return;
+ const [seq,x,y,w,h,flags,buttons]=p;
+ if(seq<=0||w<160||h<120||w>8192||h>8192||x<0||y<0||x>w||y>h)return;
+ const marker=$("p2NativeCursor"),r=video.getBoundingClientRect(),outer=$("mouse-element").getBoundingClientRect();
+ if(video.videoWidth<2||video.videoHeight<2||r.width<=0)return;
+ const scale=Math.min(r.width/video.videoWidth,r.height/video.videoHeight);
+ const drawW=video.videoWidth*scale,drawH=video.videoHeight*scale;
+ marker.style.left=(r.left-outer.left+(r.width-drawW)/2+x/w*drawW)+'px';
+ marker.style.top=(r.top-outer.top+(r.height-drawH)/2+y/h*drawH)+'px';
+ marker.hidden=false;marker.classList.toggle('inactive',(flags&1)===0);
+ $("p2AckStatus").textContent=(flags&1)?(ko?'P2: 게임 커서 확인됨':'P2: game accepted'):
+   (ko?'P2: 게임 수신 · 입력 모드 비활성':'P2: received, input mode inactive');
+}
 function activateControls() {
+  mouse.onmessage = e => acceptGameCursorAck(e.data);
   keyboard.onopen = () => {
     heartbeat = setInterval(() => send(keyboard, "alive_1"), 750);
     send(keyboard, "alive_1");
@@ -268,25 +297,37 @@ function activateControls() {
   $("mouse-element").addEventListener("mouseup", onClick);
   $("mouse-element").addEventListener("contextmenu", event => event.preventDefault());
 }
-async function ensureSound() {
-  video.muted = false;
-  video.volume = 1;
-  try {
-    await video.play();
-    $("sound").hidden = false;
-    $("sound").textContent = ko ? "게임 소리 켜짐" : "GAME AUDIO ON";
-  } catch {
-    video.muted = true;
-    await video.play().catch(() => {});
-    $("sound").hidden = false;
-    $("sound").textContent = ko ? "게임 소리 켜기" : "ENABLE GAME SOUND";
-  }
+async function ensureSound(){
+ const available=gameAudio.srcObject instanceof MediaStream &&
+   gameAudio.srcObject.getAudioTracks().some(t=>t.readyState==='live');
+ $("sound").hidden=false;
+ if(!available){
+   $("sound").textContent=ko?'소리 전달 대기':'WAITING FOR GAME AUDIO';audioState();return;
+ }
+ gameAudio.muted=false;gameAudio.volume=1;
+ try{
+   await gameAudio.play();
+   $("sound").textContent=ko?'게임 소리 재생 중':'GAME AUDIO PLAYING';
+ }catch(e){
+   $("sound").textContent=ko?'게임 소리 켜기':'ENABLE GAME SOUND';
+   console.warn('[REFLEX_AUDIO] Audio needs user gesture',e?.name||e);
+ }
+ audioState();
 }
 async function startMedia() {
   if (mediaPeer || !active || streamSignal?.readyState !== "open") return;
   state(ko ? "협력자 연결됨 · 원정의 광경을 요청하는 중..." : "P2 connected · requesting game video...", true);
   $("peerStatus").textContent = "video: requesting";
   mediaPeer = new RTCPeerConnection({iceServers: STUN_ONLY});
+   audioStatTimer=setInterval(()=>{
+     if(!mediaPeer||mediaPeer.connectionState==='closed')return;
+     void mediaPeer.getStats().then(reports=>{
+       reports.forEach(r=>{if(r.type==='inbound-rtp'&&r.kind==='audio')audioPackets=r.bytesReceived||0});
+       if(remoteAudioTrack&&audioPackets===0)
+         $("audioStatus").textContent=ko?'오디오 트랙 연결됨 · 데이터 대기':'Audio track connected, no data';
+       else audioState();
+     }).catch(()=>{});
+   },2500);
   const current = mediaPeer;
   const combined = media;
   current.addEventListener("track", event => {
@@ -294,6 +335,16 @@ async function startMedia() {
     if (!combined.getTracks().some(track => track.id === event.track.id))
       combined.addTrack(event.track);
     video.srcObject = combined;
+    if(event.track.kind==='audio'){
+      remoteAudioTrack=true;
+      gameAudio.srcObject=new MediaStream([event.track]);
+      event.track.addEventListener('ended',()=>{remoteAudioTrack=false;audioState()},{once:true});
+      console.info('[REFLEX_AUDIO] isolated game sound track arrived');
+      void ensureSound();
+      return;
+    }
+    // Keep video muted; only the dedicated element outputs remote game audio.
+    video.muted=true;
     // A track event only means SDP negotiation, not that a decoded frame
     // arrived. Retain the waiting overlay until the video actually plays.
     const revealVideo = () => {
