@@ -54,3 +54,9 @@ body.reflex-theater #mouse-element{height:min(calc(100vh - 105px),calc(94vw * 9 
 #p2VirtualCursor span{position:absolute;top:13px;left:11px;color:#c8f5ff;font:bold 12px Georgia,serif;text-shadow:1px 1px 2px #000,0 0 4px #000}
 #p2VirtualCursor.pressed{background:#ffb554;border-color:#ffdb9c;box-shadow:0 0 0 5px #dc7a4a85}
 #mouse-element:fullscreen #p2VirtualCursor{z-index:5}
+
+#gameAckCursor{position:absolute;z-index:6;pointer-events:none;transform:translate(-50%,-50%) rotate(45deg);width:14px;height:14px;border:2px solid #e6563d;background:#98221c80;box-shadow:0 0 0 2px #1b1010,0 0 9px #e84e3a}
+#gameAckCursor span{position:absolute;left:15px;top:-4px;transform:rotate(-45deg);font:11px Georgia,serif;color:#ffd0bd;text-shadow:1px 1px 2px #000}
+#gameAckCursor.confirmed{background:#f6aa45;border-color:#fff4be}
+#gameAckState{color:#ffd1bd;font:11px Consolas,monospace;white-space:nowrap}
+#audioState{align-self:center;color:#d4b48d;font:11px Georgia,serif}
