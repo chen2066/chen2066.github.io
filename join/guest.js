@@ -18,6 +18,8 @@ let streamSignal = null;
 let heartbeat = null;
 let streamRequest = null;
 let negotiationDone = false;
+let mediaStage = '';
+let lastMediaNotice = '';
 let active = false;
 let busy = false;
 let pendingMediaCandidates = [];
@@ -215,6 +217,8 @@ async function ensureSound() {
 }
 async function startMedia() {
   if (mediaPeer || !active || streamSignal?.readyState !== "open") return;
+  state(ko ? "P2 연결됨 · 호스트의 게임 화면을 요청하는 중..." : "P2 connected · requesting game video...", true);
+  $("peerStatus").textContent = "video: requesting";
   mediaPeer = new RTCPeerConnection({iceServers: STUN_ONLY});
   const current = mediaPeer;
   const combined = media;
@@ -223,7 +227,16 @@ async function startMedia() {
     if (!combined.getTracks().some(track => track.id === event.track.id))
       combined.addTrack(event.track);
     video.srcObject = combined;
-    $("awaitStream").hidden = true;
+    // A track event only means SDP negotiation, not that a decoded frame
+    // arrived. Retain the waiting overlay until the video actually plays.
+    const revealVideo = () => {
+      if (mediaPeer !== current) return;
+      $("awaitStream").hidden = true;
+      $("peerStatus").textContent = "video: receiving";
+      state(ko ? "동료의 게임 화면을 수신하고 있습니다." : "Receiving host game video", true);
+    };
+    video.addEventListener("loadeddata", revealVideo, {once:true});
+    event.track.addEventListener("unmute", revealVideo, {once:true});
     void ensureSound();
   });
   current.addEventListener("icecandidate", event => {
@@ -238,12 +251,23 @@ async function startMedia() {
     $("peerStatus").textContent = current.connectionState;
     if (current.connectionState === "failed" || current.connectionState === "closed") {
       state(ko ? "영상 연결이 중단됐습니다." : "Video connection lost");
+      $("awaitStream").hidden = false;
     }
   });
   let attempts = 0;
   const ready = () => {
-    if (negotiationDone || streamSignal?.readyState !== "open" || attempts++ >= 30) {
+    if (negotiationDone || streamSignal?.readyState !== "open") {
       clearInterval(streamRequest); return;
+    }
+    if (attempts++ >= 30) {
+      clearInterval(streamRequest);
+      $("peerStatus").textContent = "video: host did not offer";
+      state(ko ? "P2 입력은 연결됐지만 영상 요청에 응답이 없습니다. 호스트에서 ‘게임 영상 다시 시작’을 눌러 주세요."
+                : "P2 controls connected, but no video offer received. Ask host to press Restart Game Video.");
+      return;
+    }
+    if (attempts === 4 || attempts === 12) {
+      state(ko ? "호스트가 게임 창을 캡처할 때까지 기다리는 중..." : "Waiting for host game capture...", true);
     }
     send(streamSignal, "{}");
   };
@@ -255,6 +279,29 @@ async function onMediaSignal(event) {
   let message;
   try { message = JSON.parse(event.data); } catch { return; }
   if (message.role !== "host") return;
+  if (message.type === "status") {
+    mediaStage = typeof message.stage === "string" ? message.stage : "";
+    const detail = typeof message.detail === "string" ? message.detail.slice(0,300) : "";
+    if (mediaStage === "capture-restarting") {
+      resetMedia();
+      if (active) startMedia();
+      state(ko ? "호스트가 게임 영상 송출을 다시 시작하는 중..." : "Host is restarting the game video...", true);
+    } else if (mediaStage === "capture-starting") {
+      state(ko ? "호스트가 다키스트 던전 게임 창을 캡처하는 중..." : "Host is capturing the Darkest Dungeon window...", true);
+    } else if (mediaStage === "capture-failed") {
+      $("peerStatus").textContent = "video: capture failed";
+      state(ko ? "호스트에서 게임 영상 캡처에 실패했습니다. 호스트 화면의 오류를 확인하세요."
+                : "Game-only capture failed. Check the host app for details.");
+      if (detail && lastMediaNotice !== detail) {
+        lastMediaNotice = detail;
+        $("error").textContent = "Host capture error: " + detail;
+        $("error").hidden = false;
+      }
+    } else if (mediaStage === "stream-offer-sent") {
+      state(ko ? "호스트 영상 신호 전송됨. 영상 연결 중..." : "Host sent video offer. Negotiating media...", true);
+    }
+    return;
+  }
   if (message.type === "candidate") {
     if (!message.candidate) return;
     if (!mediaPeer.remoteDescription) {
@@ -265,6 +312,7 @@ async function onMediaSignal(event) {
   if (message.type !== "offer" || !message.offer || negotiationDone) return;
   negotiationDone = true;
   clearInterval(streamRequest);
+  $("error").hidden = true;
   const pc = mediaPeer;
   try {
     await pc.setRemoteDescription(message.offer);
@@ -275,7 +323,14 @@ async function onMediaSignal(event) {
     await pc.setLocalDescription(answer);
     if (pc.iceGatheringState === "complete" && pc.localDescription)
       send(streamSignal, JSON.stringify({type:"answer",answer:pc.localDescription.toJSON(),role:"client"}));
-  } catch (error) { failure(error); }
+  } catch (error) {
+    negotiationDone = false;
+    // A malformed answer or a temporary codec error must not leave the user
+    // stuck with an acknowledged offer but no video retry possibility.
+    failure(error);
+    resetMedia();
+    if (active) startMedia();
+  }
 }
 async function prepare() {
   if (busy) return;
