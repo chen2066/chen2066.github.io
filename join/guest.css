@@ -44,3 +44,13 @@ body.reflex-theater #mouse-element{height:min(calc(100vh - 105px),calc(94vw * 9 
 #p2VirtualPointer .p2-pointer-core{position:absolute;inset:10px;border-radius:50%;background:#cffbff}
 #p2VirtualPointer .p2-pointer-name{position:absolute;top:-20px;left:22px;font:700 12px Georgia,serif;color:#e4f9ff;text-shadow:-1px -1px #174d92,1px 1px #174d92}
 #p2VirtualPointer.press{border-color:#ffdf85;box-shadow:0 0 0 3px #77471f,0 0 14px #f8bd47}
+
+/* Indicates the guest's independently transmitted game-local P2 cursor.
+   The indicator never captures clicks or moves P1's Windows mouse. */
+#p2VirtualCursor{position:absolute;z-index:5;left:0;top:0;width:15px;height:15px;pointer-events:none;transform:translate(-2px,-2px);border:2px solid #5bc6ff;background:#164c75c0;border-radius:50%;box-shadow:0 0 0 2px #081722b3,0 0 10px #4ec5ff;transition:none}
+#p2VirtualCursor::before,#p2VirtualCursor::after{content:"";position:absolute;background:#d6f4ff}
+#p2VirtualCursor::before{width:1px;height:22px;top:-5px;left:5px}
+#p2VirtualCursor::after{height:1px;width:22px;left:-5px;top:5px}
+#p2VirtualCursor span{position:absolute;top:13px;left:11px;color:#c8f5ff;font:bold 12px Georgia,serif;text-shadow:1px 1px 2px #000,0 0 4px #000}
+#p2VirtualCursor.pressed{background:#ffb554;border-color:#ffdb9c;box-shadow:0 0 0 5px #dc7a4a85}
+#mouse-element:fullscreen #p2VirtualCursor{z-index:5}
