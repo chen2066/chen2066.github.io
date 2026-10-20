@@ -410,6 +410,18 @@ async function applyAnswer() {
     $("connect").disabled = false;
   } finally {busy = false;}
 }
+function setTheme(theme){
+  const mode=theme==='classic'?'classic':'letter';
+  document.body.classList.toggle('letter',mode==='letter');
+  try{localStorage.setItem('darkest-reflex-guest-theme',mode)}catch(e){}
+  $("guestLetter").setAttribute('aria-pressed',String(mode==='letter'));
+  $("guestClassic").setAttribute('aria-pressed',String(mode==='classic'));
+}
+let initialTheme='letter';
+try{initialTheme=localStorage.getItem('darkest-reflex-guest-theme')||'letter'}catch(e){}
+setTheme(initialTheme);
+$("guestLetter").addEventListener("click",()=>setTheme('letter'));
+$("guestClassic").addEventListener("click",()=>setTheme('classic'));
 translate();
 $("answer").addEventListener("input", () => $("connect").disabled = !$("answer").value.trim() || busy);
 $("copyOffer").addEventListener("click", async () => {
