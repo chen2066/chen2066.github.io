@@ -1,0 +1,20 @@
+name: Check P2 Browser Guest PR
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'join/**'
+      - '.github/tests/site.mjs'
+      - '.github/workflows/p2-guest-pr-check.yml'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test browser JS, coordinate protocol, privacy and letter UI
+        run: node .github/tests/site.mjs
