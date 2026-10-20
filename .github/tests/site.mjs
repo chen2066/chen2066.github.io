@@ -50,3 +50,8 @@ console.log("PASS: standalone website files, JS syntax, no relay calls, no TURN,
 assert(html.includes('id="p2VirtualCursor"'),"P2 game-local pointer overlay required");
 assert(css.includes("#p2VirtualCursor")&&css.includes("pointer-events:none"),"P2 cursor must never intercept actual browser click events");
 assert(js.includes('indicator.style.left='),"Visible P2 marker must follow normalized video pointer");
+
+assert(js.includes("mouse.onmessage = e => acceptGameCursorAck(e.data)"),"Game ACK must be delivered to guest");
+assert(js.includes("p2NativeCursor"),"Must distinguish native game cursor from transmitted browser target");
+assert(html.includes('id="p2AckStatus"'),"Guest ACK state must be visible");
+assert(css.includes('#p2NativeCursor')&&css.includes('pointer-events:none'),"Native cursor marker may not steal clicks");
