@@ -26,6 +26,14 @@ let pendingMediaCandidates = [];
 const heldKeys = new Set();
 const media = new MediaStream();
 const video = $("stream-video");
+const gameAudio=document.createElement('audio');
+gameAudio.preload='none';gameAudio.volume=1;
+let remoteAudioTrack=false, audioPackets=0,audioStatTimer;
+function audioState(){
+ const tracks=gameAudio.srcObject instanceof MediaStream?gameAudio.srcObject.getAudioTracks():[];
+ $("audioStatus").textContent=!tracks.length?(ko?'오디오 트랙 미도착':'Audio track missing'):
+   gameAudio.paused?(ko?'소리 재생 대기':'Audio playback paused'):(ko?'소리 재생 중':'Audio playing');
+}
 let fpsSince=0,lastPresented=0,fpsActive=false;
 function frameMetrics(timestamp,metadata){
   if(!fpsSince){fpsSince=timestamp;lastPresented=metadata.presentedFrames;}
@@ -152,6 +160,9 @@ function resetMedia() {
   mediaPeer = null;
   for (const track of media.getTracks()) media.removeTrack(track);
   video.srcObject = null;
+  gameAudio.pause();gameAudio.srcObject=null;
+  remoteAudioTrack=false;clearInterval(audioStatTimer);audioStatTimer=undefined;
+  audioPackets=0;audioState();
   fpsActive=false;fpsSince=0;$("actualFps").textContent="FPS --";
   $("awaitStream").hidden = false;
   $("retryVideo").hidden = true;
@@ -268,25 +279,37 @@ function activateControls() {
   $("mouse-element").addEventListener("mouseup", onClick);
   $("mouse-element").addEventListener("contextmenu", event => event.preventDefault());
 }
-async function ensureSound() {
-  video.muted = false;
-  video.volume = 1;
-  try {
-    await video.play();
-    $("sound").hidden = false;
-    $("sound").textContent = ko ? "게임 소리 켜짐" : "GAME AUDIO ON";
-  } catch {
-    video.muted = true;
-    await video.play().catch(() => {});
-    $("sound").hidden = false;
-    $("sound").textContent = ko ? "게임 소리 켜기" : "ENABLE GAME SOUND";
-  }
+async function ensureSound(){
+ const available=gameAudio.srcObject instanceof MediaStream &&
+   gameAudio.srcObject.getAudioTracks().some(t=>t.readyState==='live');
+ $("sound").hidden=false;
+ if(!available){
+   $("sound").textContent=ko?'소리 전달 대기':'WAITING FOR GAME AUDIO';audioState();return;
+ }
+ gameAudio.muted=false;gameAudio.volume=1;
+ try{
+   await gameAudio.play();
+   $("sound").textContent=ko?'게임 소리 재생 중':'GAME AUDIO PLAYING';
+ }catch(e){
+   $("sound").textContent=ko?'게임 소리 켜기':'ENABLE GAME SOUND';
+   console.warn('[REFLEX_AUDIO] Audio needs user gesture',e?.name||e);
+ }
+ audioState();
 }
 async function startMedia() {
   if (mediaPeer || !active || streamSignal?.readyState !== "open") return;
   state(ko ? "협력자 연결됨 · 원정의 광경을 요청하는 중..." : "P2 connected · requesting game video...", true);
   $("peerStatus").textContent = "video: requesting";
   mediaPeer = new RTCPeerConnection({iceServers: STUN_ONLY});
+   audioStatTimer=setInterval(()=>{
+     if(!mediaPeer||mediaPeer.connectionState==='closed')return;
+     void mediaPeer.getStats().then(reports=>{
+       reports.forEach(r=>{if(r.type==='inbound-rtp'&&r.kind==='audio')audioPackets=r.bytesReceived||0});
+       if(remoteAudioTrack&&audioPackets===0)
+         $("audioStatus").textContent=ko?'오디오 트랙 연결됨 · 데이터 대기':'Audio track connected, no data';
+       else audioState();
+     }).catch(()=>{});
+   },2500);
   const current = mediaPeer;
   const combined = media;
   current.addEventListener("track", event => {
@@ -294,6 +317,16 @@ async function startMedia() {
     if (!combined.getTracks().some(track => track.id === event.track.id))
       combined.addTrack(event.track);
     video.srcObject = combined;
+    if(event.track.kind==='audio'){
+      remoteAudioTrack=true;
+      gameAudio.srcObject=new MediaStream([event.track]);
+      event.track.addEventListener('ended',()=>{remoteAudioTrack=false;audioState()},{once:true});
+      console.info('[REFLEX_AUDIO] isolated game sound track arrived');
+      void ensureSound();
+      return;
+    }
+    // Keep video muted; only the dedicated element outputs remote game audio.
+    video.muted=true;
     // A track event only means SDP negotiation, not that a decoded frame
     // arrived. Retain the waiting overlay until the video actually plays.
     const revealVideo = () => {
