@@ -187,6 +187,7 @@ function disconnect() {
   keyboard = null; mouse = null; streamSignal = null;
   previousX=-1;previousY=-1;
   $("p2VirtualCursor").hidden=true;$("p2VirtualCursor").classList.remove("pressed");
+  $("p2NativeCursor").hidden=true;$("p2AckStatus").textContent=ko?"P2: 게임 입력 확인 대기":"P2: awaiting game ACK";
   $("gamePanel").hidden = true;
 }
 function focusGame(event) {
@@ -267,7 +268,24 @@ function onClick(event) {
   send(mouse,new Uint8Array([0,event.button,event.type==="mousedown"?0:1]));
   $("p2VirtualPointer").classList.toggle("press",event.type==="mousedown");
 }
+function acceptGameCursorAck(raw){
+ if(typeof raw!=='string'||raw.length>160||!raw.startsWith('RFA1:'))return;
+ const p=raw.slice(5).split(':').map(Number);
+ if(p.length!==7||p.some(x=>!Number.isFinite(x)))return;
+ const [seq,x,y,w,h,flags,buttons]=p;
+ if(seq<=0||w<160||h<120||w>8192||h>8192||x<0||y<0||x>w||y>h)return;
+ const marker=$("p2NativeCursor"),r=video.getBoundingClientRect(),outer=$("mouse-element").getBoundingClientRect();
+ if(video.videoWidth<2||video.videoHeight<2||r.width<=0)return;
+ const scale=Math.min(r.width/video.videoWidth,r.height/video.videoHeight);
+ const drawW=video.videoWidth*scale,drawH=video.videoHeight*scale;
+ marker.style.left=(r.left-outer.left+(r.width-drawW)/2+x/w*drawW)+'px';
+ marker.style.top=(r.top-outer.top+(r.height-drawH)/2+y/h*drawH)+'px';
+ marker.hidden=false;marker.classList.toggle('inactive',(flags&1)===0);
+ $("p2AckStatus").textContent=(flags&1)?(ko?'P2: 게임 커서 확인됨':'P2: game accepted'):
+   (ko?'P2: 게임 수신 · 입력 모드 비활성':'P2: received, input mode inactive');
+}
 function activateControls() {
+  mouse.onmessage = e => acceptGameCursorAck(e.data);
   keyboard.onopen = () => {
     heartbeat = setInterval(() => send(keyboard, "alive_1"), 750);
     send(keyboard, "alive_1");
