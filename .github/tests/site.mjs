@@ -15,6 +15,11 @@ assert(js.includes("sendMove(event,true)"),"Click must send accurate video point
 assert(js.includes("v.setUint16(5,10000)"),"Normalized dimensions must match game IPC");
 assert(html.includes('id="guestLetter"')&&html.includes('id="guestClassic"'),"Both themes must be selectable");
 assert(js.includes("setTheme(initialTheme)"),"Theme preference must be restorable");
+assert(html.includes('id="fullscreenVideo"')&&html.includes('id="expandVideo"'),"Guest must expose larger and fullscreen viewing");
+assert(js.includes("requestVideoFrameCallback(frameMetrics)"),"Guest FPS must measure decoded frames, not promised FPS");
+assert(js.includes("document.fullscreenElement"),"Fullscreen must have a safe exit");
+assert(css.includes("max-width:min(97vw,1640px)"),"Guest viewing panel must exceed obsolete 940px limit");
+assert(css.includes("#mouse-element:fullscreen"),"Video overlay must remain isolated in fullscreen");
 assert(js.includes('new RTCPeerConnection({iceServers: STUN_ONLY})'));
 assert(!/turn:|turns:/i.test(js), "Paid TURN is forbidden");
 assert(!/fetch\s*\(/i.test(js), "Manual P2P must not call an invite server API");
