@@ -289,6 +289,10 @@ async function onMediaSignal(event) {
     } else if (mediaStage === "capture-starting") {
       state(ko ? "호스트가 다키스트 던전 게임 창을 캡처하는 중..." : "Host is capturing the Darkest Dungeon window...", true);
     } else if (mediaStage === "capture-failed") {
+      // A failed native capture cannot produce an offer. Stop retry spam
+      // and preserve the actionable capture error until the host retries.
+      clearInterval(streamRequest);
+      streamRequest = null;
       $("peerStatus").textContent = "video: capture failed";
       state(ko ? "호스트에서 게임 영상 캡처에 실패했습니다. 호스트 화면의 오류를 확인하세요."
                 : "Game-only capture failed. Check the host app for details.");
