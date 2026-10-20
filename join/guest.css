@@ -54,3 +54,15 @@ body.reflex-theater #mouse-element{height:min(calc(100vh - 105px),calc(94vw * 9 
 #p2VirtualCursor span{position:absolute;top:13px;left:11px;color:#c8f5ff;font:bold 12px Georgia,serif;text-shadow:1px 1px 2px #000,0 0 4px #000}
 #p2VirtualCursor.pressed{background:#ffb554;border-color:#ffdb9c;box-shadow:0 0 0 5px #dc7a4a85}
 #mouse-element:fullscreen #p2VirtualCursor{z-index:5}
+
+
+/* True in-game cursor ACK from Darkest.exe via authenticated local IPC.
+   Blue cross = browser target, gold diamond = last game-observed cursor. */
+#p2NativeCursor{position:absolute;z-index:6;pointer-events:none;left:0;top:0;
+  transform:translate(-50%,-50%) rotate(45deg);height:12px;width:12px;
+  background:#dfac56;border:2px solid #502512;box-shadow:0 0 0 2px #0008,0 0 8px #ffdf8c}
+#p2NativeCursor span{position:absolute;left:15px;top:-13px;white-space:nowrap;
+  transform:rotate(-45deg);color:#ffe4a2;font:bold 12px Georgia,serif;text-shadow:0 0 4px #000,1px 1px #000}
+#p2NativeCursor.inactive{opacity:.4}
+#p2AckStatus{font:11px Consolas,monospace;color:#ebc791;white-space:nowrap}
+body.letter #p2AckStatus{color:#6d4925}
