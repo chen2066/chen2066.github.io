@@ -175,6 +175,7 @@ function disconnect() {
   peer = null;
   keyboard = null; mouse = null; streamSignal = null;
   previousX=-1;previousY=-1;
+  $("p2VirtualCursor").hidden=true;$("p2VirtualCursor").classList.remove("pressed");
   $("gamePanel").hidden = true;
 }
 function focusGame(event) {
@@ -233,6 +234,11 @@ function sendMove(event,force=false) {
   const point=pointerAt(event);
   if(!point)return false;
   drawP2Pointer(point);
+  const indicator=$("p2VirtualCursor");
+  const screen=$("mouse-element").getBoundingClientRect();
+  indicator.hidden=false;
+  indicator.style.left=(event.clientX-screen.left)+"px";
+  indicator.style.top=(event.clientY-screen.top)+"px";
   if(!force&&point.x===previousX&&point.y===previousY)return true;
   previousX=point.x;previousY=point.y;
   const data=new ArrayBuffer(9),v=new DataView(data);
@@ -244,6 +250,7 @@ function sendMove(event,force=false) {
 function onClick(event) {
   if (!active || mouse?.readyState !== "open"||(event.button!==0&&event.button!==2))return;
   if(!sendMove(event,true))return;
+  $("p2VirtualCursor").classList.toggle("pressed",event.type==="mousedown");
   if(event.type==="mousedown")$("mouse-element").focus();
   event.preventDefault();
   send(mouse,new Uint8Array([0,event.button,event.type==="mousedown"?0:1]));

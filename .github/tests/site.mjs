@@ -41,3 +41,7 @@ const zipped=Buffer.from(compressed).toString("base64");
 const unzipped=await new Response(new Blob([Buffer.from(zipped,"base64")]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
 assert.deepEqual(JSON.parse(unzipped),offer);
 console.log("PASS: standalone website files, JS syntax, no relay calls, no TURN, and gzip/base64 SDP codec");
+
+assert(html.includes('id="p2VirtualCursor"'),"P2 game-local pointer overlay required");
+assert(css.includes("#p2VirtualCursor")&&css.includes("pointer-events:none"),"P2 cursor must never intercept actual browser click events");
+assert(js.includes('indicator.style.left='),"Visible P2 marker must follow normalized video pointer");
