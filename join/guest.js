@@ -142,6 +142,7 @@ function disconnect() {
   if (peer) peer.close();
   peer = null;
   keyboard = null; mouse = null; streamSignal = null;
+  previousX=-1;previousY=-1;
   $("gamePanel").hidden = true;
 }
 function focusGame(event) {
@@ -169,27 +170,38 @@ function onKeyUp(event) {
   send(keyboard, event.key + "_0");
   event.preventDefault();
 }
-function sendMove(event) {
-  if (!active || mouse?.readyState !== "open") return;
-  const bounds = $("mouse-element").getBoundingClientRect();
-  const x = Math.max(0, Math.min(65535, Math.floor(event.clientX - bounds.left)));
-  const y = Math.max(0, Math.min(65535, Math.floor(event.clientY - bounds.top)));
-  const w = Math.max(1, Math.min(65535, Math.floor(bounds.width)));
-  const h = Math.max(1, Math.min(65535, Math.floor(bounds.height)));
-  const buffer = new ArrayBuffer(9);
-  const view = new DataView(buffer);
-  view.setUint8(0, 1);
-  view.setUint16(1, x);
-  view.setUint16(3, y);
-  view.setUint16(5, w);
-  view.setUint16(7, h);
-  send(mouse, buffer);
+let previousX=-1,previousY=-1;
+function pointerAt(event){
+  if(video.videoWidth<2||video.videoHeight<2)return null;
+  const rect=video.getBoundingClientRect();
+  if(rect.width<=0||rect.height<=0)return null;
+  const scale=Math.min(rect.width/video.videoWidth,rect.height/video.videoHeight);
+  const vw=video.videoWidth*scale,vh=video.videoHeight*scale;
+  const x0=rect.left+(rect.width-vw)/2,y0=rect.top+(rect.height-vh)/2;
+  if(event.clientX<x0||event.clientX>x0+vw||event.clientY<y0||event.clientY>y0+vh)return null;
+  return {
+    x:Math.max(0,Math.min(10000,Math.round((event.clientX-x0)/vw*10000))),
+    y:Math.max(0,Math.min(10000,Math.round((event.clientY-y0)/vh*10000)))
+  };
+}
+function sendMove(event,force=false) {
+  if (!active || mouse?.readyState !== "open") return false;
+  const point=pointerAt(event);
+  if(!point)return false;
+  if(!force&&point.x===previousX&&point.y===previousY)return true;
+  previousX=point.x;previousY=point.y;
+  const data=new ArrayBuffer(9),v=new DataView(data);
+  v.setUint8(0,1);v.setUint16(1,point.x);v.setUint16(3,point.y);
+  v.setUint16(5,10000);v.setUint16(7,10000);
+  send(mouse,data);
+  return true;
 }
 function onClick(event) {
-  if (!active || mouse?.readyState !== "open") return;
-  if (event.type === "mousedown") $("mouse-element").focus();
+  if (!active || mouse?.readyState !== "open"||(event.button!==0&&event.button!==2))return;
+  if(!sendMove(event,true))return;
+  if(event.type==="mousedown")$("mouse-element").focus();
   event.preventDefault();
-  send(mouse, new Uint8Array([0, Math.min(2, event.button), event.type === "mousedown" ? 0 : 1]));
+  send(mouse,new Uint8Array([0,event.button,event.type==="mousedown"?0:1]));
 }
 function activateControls() {
   keyboard.onopen = () => {
