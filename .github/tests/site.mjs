@@ -79,7 +79,7 @@ assert(js.includes("document.hidden"),"Do not diagnose background-tab throttling
 {
   const vm=await import("node:vm");
   const begin=js.indexOf("let previousX=-1,previousY=-1;");
-  const end=js.indexOf("// Mirror the transmitted",begin);
+  const end=js.indexOf("function sendMove(",begin);
   assert(begin>=0&&end>begin,"P2 coordinate functions must be present");
   const context={video:{
     videoWidth:1368,videoHeight:800,
