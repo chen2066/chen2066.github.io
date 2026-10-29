@@ -69,3 +69,8 @@ assert(js.includes('send(keyboard, event.key + "_1")'),'P2 key down protocol mus
 assert(!js.includes("  drawP2Pointer(point);"),"Do not draw a second browser pointer");
 assert(css.includes("#p2VirtualPointer,#p2VirtualCursor,#p2NativeCursor{display:none!important"),"Hide all redundant browser pointers");
 assert(js.includes("renderActualFps()"),"Measure display and decode FPS");
+
+assert(js.includes("[REFLEX_VIDEO_STALL]"),"Frame stall recovery logging must exist");
+assert(js.includes("videoRecoveryAttempts>=2"),"Media reconnection retries must be bounded");
+assert(js.includes("resetMedia();\n  void startMedia();"),"Recover only video peer, not controller");
+assert(js.includes("document.hidden"),"Do not diagnose background-tab throttling as video failure");
