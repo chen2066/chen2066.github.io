@@ -71,7 +71,9 @@ assert(css.includes("#p2VirtualPointer,#p2VirtualCursor,#p2NativeCursor{display:
 assert(js.includes("renderActualFps()"),"Measure display and decode FPS");
 
 assert(js.includes("[REFLEX_VIDEO_STALL]"),"Frame stall recovery logging must exist");
-assert(js.includes("videoRecoveryAttempts>=2"),"Media reconnection retries must be bounded");
+assert(js.includes("videoRecoveryAttempts>=6"),"Media reconnection retries must be bounded but tolerate transient WGC restarts");
+assert(js.includes("호환 영상 (GPU 미연결)"),"Fallback must never masquerade as native H.264");
+assert(js.includes("Reconnecting; P2 control session preserved"),"Transient ICE disconnect must not kill P2");
 assert(js.includes("resetMedia();\n  void startMedia();"),"Recover only video peer, not controller");
 assert(js.includes("document.hidden"),"Do not diagnose background-tab throttling as video failure");
 

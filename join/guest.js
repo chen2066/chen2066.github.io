@@ -44,15 +44,21 @@ function audioState(){
 }
 let fpsSince=0,lastPresented=0,fpsActive=false;
 let actualDisplayedFps=0,actualDecodedFps=0;
+let lastStableVideoAt=0;
 // Video recovery never closes P2 keyboard/mouse. It does not touch the game DLL.
 let lastVideoFrameAt=0,lastVideoRecoveryAt=0,videoRecoveryAttempts=0;
 function renderActualFps(){
   const shown=actualDisplayedFps>0?actualDisplayedFps.toFixed(1):"--";
   const decoded=actualDecodedFps>0?actualDecodedFps.toFixed(1):"--";
-  $("actualFps").textContent="표시 "+shown+" / 디코딩 "+decoded+" FPS · "+video.videoWidth+"×"+video.videoHeight;
+  const native=gpuVideoTrack?.readyState==="live";
+  $("actualFps").textContent=native
+    ? "GPU H.264 · 표시 "+shown+" / 디코딩 "+decoded+" FPS · "+video.videoWidth+"×"+video.videoHeight
+    : "호환 영상 (GPU 미연결) · 표시 "+shown+" FPS · "+video.videoWidth+"×"+video.videoHeight;
 }
 function frameMetrics(timestamp,metadata){
   lastVideoFrameAt=Date.now();
+  if(!lastStableVideoAt)lastStableVideoAt=lastVideoFrameAt;
+  if(lastVideoFrameAt-lastStableVideoAt>30000){videoRecoveryAttempts=0;lastStableVideoAt=lastVideoFrameAt;}
   if(!fpsSince){fpsSince=timestamp;lastPresented=metadata.presentedFrames;}
   if(timestamp-fpsSince>=1000){
     const fps=Math.max(0,Math.round((metadata.presentedFrames-lastPresented)*10000/(timestamp-fpsSince))/10);
@@ -183,7 +189,7 @@ function resetMedia() {
   gameAudio.pause();gameAudio.srcObject=null;
   remoteAudioTrack=false;clearInterval(audioStatTimer);audioStatTimer=undefined;
   audioPackets=0;audioState();
-  fpsActive=false;fpsSince=0;actualDisplayedFps=0;actualDecodedFps=0;lastVideoFrameAt=0;$("actualFps").textContent="FPS --";
+  fpsActive=false;fpsSince=0;actualDisplayedFps=0;actualDecodedFps=0;lastVideoFrameAt=0;lastStableVideoAt=0;$("actualFps").textContent="FPS --";
   $("awaitStream").hidden = false;
   $("retryVideo").hidden = true;
 }
@@ -606,9 +612,9 @@ setInterval(()=>{
   if(!active||busy||document.hidden||!mediaPeer||!video.srcObject||
      streamSignal?.readyState!=="open"||!lastVideoFrameAt)return;
   const now=Date.now();
-  if(now-lastVideoFrameAt<12000||now-lastVideoRecoveryAt<25000||videoRecoveryAttempts>=2)return;
+  if(now-lastVideoFrameAt<12000||now-lastVideoRecoveryAt<25000||videoRecoveryAttempts>=6)return;
   videoRecoveryAttempts++;
-  lastVideoRecoveryAt=now;
+  lastVideoRecoveryAt=now;lastStableVideoAt=0;
   console.warn("[REFLEX_VIDEO_STALL] no presented frame for 12s; media-only reconnect attempt="+videoRecoveryAttempts);
   $("peerStatus").textContent="video: reconnecting after frame stall";
   resetMedia();
@@ -632,7 +638,9 @@ async function prepare() {
         $("gamePanel").hidden = false;
         state(ko ? "협력자와 연결됐습니다." : "Connected directly to host", true);
         if (streamSignal?.readyState === "open") void startMedia();
-      } else if (cs === "failed" || cs === "closed" || cs === "disconnected") {
+      } else if(cs === "disconnected"){
+        if(active)state(ko ? "네트워크 재연결 중. 게임 조작 연결은 보존합니다." : "Reconnecting; P2 control session preserved");
+      } else if (cs === "failed" || cs === "closed") {
         if (active) {releaseControls(); state(ko ? "협력자와의 연결이 끊겼습니다." : "Host connection interrupted");}
       }
     });
