@@ -13,8 +13,8 @@ assert(js.includes('CompressionStream("gzip")'));
 assert(js.includes('DecompressionStream("gzip")'));
 assert(js.includes("video.getBoundingClientRect()"),"Pointer mapping must use real video bounds");
 assert(js.includes("sendMove(event,true)"),"Click must send accurate video pointer first");
-assert(html.includes('id="p2VirtualPointer"'),"P2 browser pointer marker must exist");
-assert(css.includes("pointer-events:none"),"P2 cursor overlay must never intercept clicks");
+for (const id of ["p2VirtualPointer","p2VirtualCursor","p2NativeCursor"]) { assert(!html.includes('id="'+id+'"'),"No redundant browser cursor element "+id); assert(!js.includes('$("'+id+'")'),"No JS creation of browser cursor "+id); assert(!css.includes('#'+id+'{'),"No CSS cursor artwork "+id); }
+assert(css.includes('#mouse-element,#mouse-element *{cursor:none!important}'),"OS pointer hidden over game without repainting any game pixels");
 assert(js.includes("v.setUint16(5,10000)"),"Normalized dimensions must match game IPC");
 assert(html.includes('id="guestLetter"')&&html.includes('id="guestClassic"'),"Both themes must be selectable");
 assert(js.includes("setTheme(initialTheme)"),"Theme preference must be restorable");
@@ -113,3 +113,5 @@ assert(js.includes("document.hidden"),"Do not diagnose background-tab throttling
 
 assert(js.includes('send(keyboard, "Escape_1")'),"P2 Escape must be forwarded to guarded game-side close, not disconnect");
 assert(js.includes('heldKeys.add("Escape")'),"P2 Escape down/up symmetry required");
+
+assert(!js.includes("drawP2Pointer("),"No browser-drawn P2 pointers may be created");
