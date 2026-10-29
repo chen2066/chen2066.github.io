@@ -43,11 +43,18 @@ function audioState(){
    gameAudio.paused?(ko?'소리 재생 대기':'Audio playback paused'):(ko?'소리 재생 중':'Audio playing');
 }
 let fpsSince=0,lastPresented=0,fpsActive=false;
+let actualDisplayedFps=0,actualDecodedFps=0;
+function renderActualFps(){
+  const shown=actualDisplayedFps>0?actualDisplayedFps.toFixed(1):"--";
+  const decoded=actualDecodedFps>0?actualDecodedFps.toFixed(1):"--";
+  $("actualFps").textContent="표시 "+shown+" / 디코딩 "+decoded+" FPS · "+video.videoWidth+"×"+video.videoHeight;
+}
 function frameMetrics(timestamp,metadata){
   if(!fpsSince){fpsSince=timestamp;lastPresented=metadata.presentedFrames;}
   if(timestamp-fpsSince>=1000){
     const fps=Math.max(0,Math.round((metadata.presentedFrames-lastPresented)*10000/(timestamp-fpsSince))/10);
-    $("actualFps").textContent=(Number.isFinite(fps)?fps.toFixed(1):'--')+' FPS · '+video.videoWidth+'×'+video.videoHeight;
+    actualDisplayedFps=Number.isFinite(fps)?fps:0;
+    renderActualFps();
     fpsSince=timestamp;lastPresented=metadata.presentedFrames;
   }
   if(!document.hidden&&video.srcObject&&typeof video.requestVideoFrameCallback==='function')
@@ -173,7 +180,7 @@ function resetMedia() {
   gameAudio.pause();gameAudio.srcObject=null;
   remoteAudioTrack=false;clearInterval(audioStatTimer);audioStatTimer=undefined;
   audioPackets=0;audioState();
-  fpsActive=false;fpsSince=0;$("actualFps").textContent="FPS --";
+  fpsActive=false;fpsSince=0;actualDisplayedFps=0;actualDecodedFps=0;$("actualFps").textContent="FPS --";
   $("awaitStream").hidden = false;
   $("retryVideo").hidden = true;
 }
@@ -255,12 +262,8 @@ function sendMove(event,force=false) {
   if (!active || mouse?.readyState !== "open") return false;
   const point=pointerAt(event);
   if(!point)return false;
-  drawP2Pointer(point);
-  const indicator=$("p2VirtualCursor");
-  const screen=$("mouse-element").getBoundingClientRect();
-  indicator.hidden=false;
-  indicator.style.left=(event.clientX-screen.left)+"px";
-  indicator.style.top=(event.clientY-screen.top)+"px";
+  // Render only the game image cursor; never a second browser crosshair.
+  $("mouse-element").classList.add("p2-pointer-active");
   if(!force&&point.x===previousX&&point.y===previousY)return true;
   previousX=point.x;previousY=point.y;
   const data=new ArrayBuffer(9),v=new DataView(data);
@@ -272,11 +275,9 @@ function sendMove(event,force=false) {
 function onClick(event) {
   if (!active || mouse?.readyState !== "open"||(event.button!==0&&event.button!==2))return;
   if(!sendMove(event,true))return;
-  $("p2VirtualCursor").classList.toggle("pressed",event.type==="mousedown");
   if(event.type==="mousedown")$("mouse-element").focus();
   event.preventDefault();
   send(mouse,new Uint8Array([0,event.button,event.type==="mousedown"?0:1]));
-  $("p2VirtualPointer").classList.toggle("press",event.type==="mousedown");
 }
 function acceptGameCursorAck(raw){
  if(typeof raw!=='string'||raw.length>160||!raw.startsWith('RFA1:'))return;
@@ -290,7 +291,7 @@ function acceptGameCursorAck(raw){
  const drawW=video.videoWidth*scale,drawH=video.videoHeight*scale;
  marker.style.left=(r.left-outer.left+(r.width-drawW)/2+x/w*drawW)+'px';
  marker.style.top=(r.top-outer.top+(r.height-drawH)/2+y/h*drawH)+'px';
- marker.hidden=false;marker.classList.toggle('inactive',(flags&1)===0);
+ marker.hidden=true;marker.classList.toggle("inactive",(flags&1)===0);
  $("p2AckStatus").textContent=(flags&1)?(ko?'P2: 게임 커서 확인됨':'P2: game accepted'):
    (ko?'P2: 게임 수신 · 입력 모드 비활성':'P2: received, input mode inactive');
 }
@@ -398,6 +399,8 @@ async function handleGpuSignal(message) {
           const jitterMs=count>0?Math.round(1000*Number(r.jitterBufferDelay||0)/count):0;
           console.info("[REFLEX_GPU] guest framesDecoded="+Number(r.framesDecoded||0)+
             " fps="+Number(r.framesPerSecond||0)+" jitterMs="+jitterMs);
+          actualDecodedFps=Number(r.framesPerSecond||0);
+          renderActualFps();
         }
       });
     }).catch(()=>{});
