@@ -13,8 +13,8 @@ assert(js.includes('CompressionStream("gzip")'));
 assert(js.includes('DecompressionStream("gzip")'));
 assert(js.includes("video.getBoundingClientRect()"),"Pointer mapping must use real video bounds");
 assert(js.includes("sendMove(event,true)"),"Click must send accurate video pointer first");
-assert(html.includes('id="p2VirtualPointer"'),"P2 browser pointer marker must exist");
-assert(css.includes("pointer-events:none"),"P2 cursor overlay must never intercept clicks");
+for (const id of ["p2VirtualPointer","p2VirtualCursor","p2NativeCursor"]) { assert(!html.includes('id="'+id+'"'),"No redundant browser cursor element "+id); assert(!js.includes('$("'+id+'")'),"No JS creation of browser cursor "+id); assert(!css.includes('#'+id+'{'),"No CSS cursor artwork "+id); }
+assert(css.includes('#mouse-element,#mouse-element *{cursor:none!important}'),"OS pointer hidden over game without repainting any game pixels");
 assert(js.includes("v.setUint16(5,10000)"),"Normalized dimensions must match game IPC");
 assert(html.includes('id="guestLetter"')&&html.includes('id="guestClassic"'),"Both themes must be selectable");
 assert(js.includes("setTheme(initialTheme)"),"Theme preference must be restorable");
@@ -46,13 +46,9 @@ const unzipped=await new Response(new Blob([Buffer.from(zipped,"base64")]).strea
 assert.deepEqual(JSON.parse(unzipped),offer);
 console.log("PASS: standalone website files, JS syntax, no relay calls, no TURN, and gzip/base64 SDP codec");
 
-assert(html.includes('id="p2VirtualCursor"'),"P2 game-local pointer overlay required");
-assert(css.includes("#p2VirtualCursor")&&css.includes("pointer-events:none"),"P2 cursor must never intercept actual browser click events");
 
 assert(js.includes("mouse.onmessage = e => acceptGameCursorAck(e.data)"),"Game ACK must be delivered to guest");
-assert(js.includes("p2NativeCursor"),"Must distinguish native game cursor from transmitted browser target");
 assert(html.includes('id="p2AckStatus"'),"Guest ACK state must be visible");
-assert(css.includes('#p2NativeCursor')&&css.includes('pointer-events:none'),"Native cursor marker may not steal clicks");
 
 // GPU video must negotiate over the existing authenticated P2 media signal.
 // The original controller, game-only audio and manual invitation remain untouched.
@@ -67,7 +63,6 @@ assert(js.includes('if(event.track.kind===\'audio\')') && js.includes('gameAudio
 assert(js.includes('send(keyboard, event.key + "_1")'),'P2 key down protocol must remain intact');
 
 assert(!js.includes("  drawP2Pointer(point);"),"Do not draw a second browser pointer");
-assert(css.includes("#p2VirtualPointer,#p2VirtualCursor,#p2NativeCursor{display:none!important"),"Hide all redundant browser pointers");
 assert(js.includes("renderActualFps()"),"Measure display and decode FPS");
 
 assert(js.includes("[REFLEX_VIDEO_STALL]"),"Frame stall recovery logging must exist");
@@ -84,7 +79,7 @@ assert(js.includes("document.hidden"),"Do not diagnose background-tab throttling
 {
   const vm=await import("node:vm");
   const begin=js.indexOf("let previousX=-1,previousY=-1;");
-  const end=js.indexOf("// Mirror the transmitted",begin);
+  const end=js.indexOf("function sendMove(",begin);
   assert(begin>=0&&end>begin,"P2 coordinate functions must be present");
   const context={video:{
     videoWidth:1368,videoHeight:800,
@@ -110,3 +105,8 @@ assert(js.includes("document.hidden"),"Do not diagnose background-tab throttling
   assert.equal(cropped.width,683);assert.equal(cropped.height,384);
   console.log("PASS: ACK-verified client-area pointer coordinates with WGC chrome and GPU cropping");
 }
+
+assert(js.includes('send(keyboard, "Escape_1")'),"P2 Escape must be forwarded to guarded game-side close, not disconnect");
+assert(js.includes('heldKeys.add("Escape")'),"P2 Escape down/up symmetry required");
+
+assert(!js.includes("drawP2Pointer("),"No browser-drawn P2 pointers may be created");

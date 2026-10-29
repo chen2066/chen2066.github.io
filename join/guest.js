@@ -194,9 +194,6 @@ function resetMedia() {
   $("retryVideo").hidden = true;
 }
 function releaseControls() {
-  $("p2VirtualPointer").hidden=true;
-  $("p2VirtualPointer").classList.remove("press");
-  $("mouse-element").classList.remove("p2-pointer-active");
   for (const key of heldKeys) send(keyboard, key + "_0");
   heldKeys.clear();
   send(mouse, new Uint8Array([0, 0, 1]));
@@ -212,8 +209,7 @@ function disconnect() {
   peer = null;
   keyboard = null; mouse = null; streamSignal = null;
   previousX=-1;previousY=-1;ackGameSize=null;
-  $("p2VirtualCursor").hidden=true;$("p2VirtualCursor").classList.remove("pressed");
-  $("p2NativeCursor").hidden=true;$("p2AckStatus").textContent=ko?"P2: 게임 입력 확인 대기":"P2: awaiting game ACK";
+  $("p2AckStatus").textContent=ko?"P2: 게임 입력 확인 대기":"P2: awaiting game ACK";
   $("gamePanel").hidden = true;
 }
 function focusGame(event) {
@@ -224,9 +220,14 @@ function focusGame(event) {
 }
 function onKeyDown(event) {
   if (!focusGame(event)) return;
+  // ESC is a game-only request, never a browser disconnect. The game-side
+  // verified hero-popup gate decides whether it is safe to close anything.
   if (event.key === "Escape") {
-    releaseControls();
-    $("mouse-element").blur();
+    event.preventDefault();
+    event.stopPropagation();
+    if (heldKeys.has("Escape")) return;
+    heldKeys.add("Escape");
+    send(keyboard, "Escape_1");
     return;
   }
   event.preventDefault();
@@ -275,24 +276,10 @@ function pointerAt(event){
     y:Math.max(0,Math.min(10000,Math.round((event.clientY-bounds.top)/bounds.height*10000)))
   };
 }
-// Mirror the transmitted 0..10000 cursor coordinate on top of the game.
- // This shows what the browser SENT, not an unverified claim the game clicked.
-function drawP2Pointer(point){
- const marker=$("p2VirtualPointer"),surface=$("mouse-element");
- const r=video.getBoundingClientRect(),outer=surface.getBoundingClientRect();
- const ratio=Math.min(r.width/video.videoWidth,r.height/video.videoHeight);
- const w=video.videoWidth*ratio,h=video.videoHeight*ratio;
- marker.style.left=(r.left-outer.left+(r.width-w)/2+point.x*w/10000)+'px';
- marker.style.top=(r.top-outer.top+(r.height-h)/2+point.y*h/10000)+'px';
- marker.hidden=false;
- surface.classList.add('p2-pointer-active');
-}
 function sendMove(event,force=false) {
   if (!active || mouse?.readyState !== "open") return false;
   const point=pointerAt(event);
   if(!point)return false;
-  // Render only the game image cursor; never a second browser crosshair.
-  $("mouse-element").classList.add("p2-pointer-active");
   if(!force&&point.x===previousX&&point.y===previousY)return true;
   previousX=point.x;previousY=point.y;
   const data=new ArrayBuffer(9),v=new DataView(data);
@@ -315,12 +302,6 @@ function acceptGameCursorAck(raw){
  const [seq,x,y,w,h,flags,buttons]=p;
  if(seq<=0||w<160||h<120||w>8192||h>8192||x<0||y<0||x>w||y>h)return;
  ackGameSize={w,h};
- const marker=$("p2NativeCursor"),bounds=videoClientBounds();
- const outer=$("mouse-element").getBoundingClientRect();
- if(!bounds)return;
- marker.style.left=(bounds.left-outer.left+x/w*bounds.width)+'px';
- marker.style.top=(bounds.top-outer.top+y/h*bounds.height)+'px';
- marker.hidden=true;marker.classList.toggle("inactive",(flags&1)===0);
  $("p2AckStatus").textContent=(flags&1)?(ko?'P2: 게임 커서 확인됨':'P2: game accepted'):
    (ko?'P2: 게임 수신 · 입력 모드 비활성':'P2: received, input mode inactive');
 }
@@ -332,7 +313,6 @@ function activateControls() {
   };
   keyboard.onclose = () => {clearInterval(heartbeat); releaseControls();};
   $("mouse-element").addEventListener("mousemove", sendMove);
-  $("mouse-element").addEventListener("mouseleave",()=>{$("p2VirtualPointer").hidden=true;$("mouse-element").classList.remove("p2-pointer-active")});
   $("mouse-element").addEventListener("mousedown", onClick);
   $("mouse-element").addEventListener("mouseup", onClick);
   $("mouse-element").addEventListener("contextmenu", event => event.preventDefault());
