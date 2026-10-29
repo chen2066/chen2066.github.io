@@ -224,9 +224,14 @@ function focusGame(event) {
 }
 function onKeyDown(event) {
   if (!focusGame(event)) return;
+  // ESC is a game-only request, never a browser disconnect. The game-side
+  // verified hero-popup gate decides whether it is safe to close anything.
   if (event.key === "Escape") {
-    releaseControls();
-    $("mouse-element").blur();
+    event.preventDefault();
+    event.stopPropagation();
+    if (heldKeys.has("Escape")) return;
+    heldKeys.add("Escape");
+    send(keyboard, "Escape_1");
     return;
   }
   event.preventDefault();
