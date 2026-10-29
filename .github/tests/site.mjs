@@ -74,3 +74,37 @@ assert(js.includes("[REFLEX_VIDEO_STALL]"),"Frame stall recovery logging must ex
 assert(js.includes("videoRecoveryAttempts>=2"),"Media reconnection retries must be bounded");
 assert(js.includes("resetMedia();\n  void startMedia();"),"Recover only video peer, not controller");
 assert(js.includes("document.hidden"),"Do not diagnose background-tab throttling as video failure");
+
+
+
+// Validate the guest cursor transform against actual WGC non-client padding.
+// Use a tiny DOM/video stub so this test never opens a real WebRTC session.
+{
+  const vm=await import("node:vm");
+  const begin=js.indexOf("let previousX=-1,previousY=-1;");
+  const end=js.indexOf("// Mirror the transmitted",begin);
+  assert(begin>=0&&end>begin,"P2 coordinate functions must be present");
+  const context={video:{
+    videoWidth:1368,videoHeight:800,
+    getBoundingClientRect:()=>({left:20,top:30,width:684,height:400})
+  }};
+  vm.runInNewContext(js.slice(begin,end),context);
+  vm.runInNewContext("ackGameSize={w:1366,h:768}",context);
+  const bounds=vm.runInNewContext("videoClientBounds()",context);
+  assert.equal(bounds.left,20.5);
+  assert.equal(bounds.top,45.5);
+  assert.equal(bounds.width,683);
+  assert.equal(bounds.height,384);
+  const outside=vm.runInNewContext("pointerAt({clientX:21,clientY:31})",context);
+  assert.equal(outside,null,"Clicks in the window title bar must not become game clicks");
+  const leftTop=vm.runInNewContext("pointerAt({clientX:20.5,clientY:45.5})",context);
+  assert.equal(leftTop.x,0);assert.equal(leftTop.y,0);
+  const rightBottom=vm.runInNewContext("pointerAt({clientX:703.5,clientY:429.5})",context);
+  assert.equal(rightBottom.x,10000);assert.equal(rightBottom.y,10000);
+  context.video.videoWidth=1366;context.video.videoHeight=768;
+  context.video.getBoundingClientRect=()=>({left:20,top:30,width:683,height:384});
+  const cropped=vm.runInNewContext("videoClientBounds()",context);
+  assert.equal(cropped.left,20);assert.equal(cropped.top,30);
+  assert.equal(cropped.width,683);assert.equal(cropped.height,384);
+  console.log("PASS: ACK-verified client-area pointer coordinates with WGC chrome and GPU cropping");
+}
