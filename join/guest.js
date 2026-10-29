@@ -205,7 +205,7 @@ function disconnect() {
   if (peer) peer.close();
   peer = null;
   keyboard = null; mouse = null; streamSignal = null;
-  previousX=-1;previousY=-1;
+  previousX=-1;previousY=-1;ackGameSize=null;
   $("p2VirtualCursor").hidden=true;$("p2VirtualCursor").classList.remove("pressed");
   $("p2NativeCursor").hidden=true;$("p2AckStatus").textContent=ko?"P2: 게임 입력 확인 대기":"P2: awaiting game ACK";
   $("gamePanel").hidden = true;
@@ -236,17 +236,37 @@ function onKeyUp(event) {
   event.preventDefault();
 }
 let previousX=-1,previousY=-1;
-function pointerAt(event){
-  if(video.videoWidth<2||video.videoHeight<2)return null;
+let ackGameSize=null;
+
+// The video may contain a DWM title bar and border (e.g. 1368x800),
+// while the game ACK reports the real client area (1366x768).
+// Match the host's conservative ClientRectCrop policy exactly; do not
+// guess when the capture is scaled, fullscreen or resolution is unknown.
+function videoClientBounds(){
   const rect=video.getBoundingClientRect();
-  if(rect.width<=0||rect.height<=0)return null;
-  const scale=Math.min(rect.width/video.videoWidth,rect.height/video.videoHeight);
-  const vw=video.videoWidth*scale,vh=video.videoHeight*scale;
-  const x0=rect.left+(rect.width-vw)/2,y0=rect.top+(rect.height-vh)/2;
-  if(event.clientX<x0||event.clientX>x0+vw||event.clientY<y0||event.clientY>y0+vh)return null;
+  const sw=video.videoWidth,sh=video.videoHeight;
+  if(sw<2||sh<2||rect.width<=0||rect.height<=0)return null;
+  const scale=Math.min(rect.width/sw,rect.height/sh);
+  const fullX=rect.left+(rect.width-sw*scale)/2;
+  const fullY=rect.top+(rect.height-sh*scale)/2;
+  let sx=0,sy=0,cw=sw,ch=sh;
+  if(ackGameSize){
+    const {w,h}=ackGameSize;
+    const dx=sw-w,dy=sh-h;
+    if(dx>=0&&dx<=16&&dy>=20&&dy<=80&&w%2===0&&h%2===0){
+      sx=Math.floor(dx/2);sy=dy-1;cw=w;ch=h;
+    }
+  }
+  return {left:fullX+sx*scale,top:fullY+sy*scale,width:cw*scale,height:ch*scale};
+}
+function pointerAt(event){
+  const bounds=videoClientBounds();
+  if(!bounds)return null;
+  if(event.clientX<bounds.left||event.clientX>bounds.left+bounds.width||
+     event.clientY<bounds.top||event.clientY>bounds.top+bounds.height)return null;
   return {
-    x:Math.max(0,Math.min(10000,Math.round((event.clientX-x0)/vw*10000))),
-    y:Math.max(0,Math.min(10000,Math.round((event.clientY-y0)/vh*10000)))
+    x:Math.max(0,Math.min(10000,Math.round((event.clientX-bounds.left)/bounds.width*10000))),
+    y:Math.max(0,Math.min(10000,Math.round((event.clientY-bounds.top)/bounds.height*10000)))
   };
 }
 // Mirror the transmitted 0..10000 cursor coordinate on top of the game.
@@ -288,12 +308,12 @@ function acceptGameCursorAck(raw){
  if(p.length!==7||p.some(x=>!Number.isFinite(x)))return;
  const [seq,x,y,w,h,flags,buttons]=p;
  if(seq<=0||w<160||h<120||w>8192||h>8192||x<0||y<0||x>w||y>h)return;
- const marker=$("p2NativeCursor"),r=video.getBoundingClientRect(),outer=$("mouse-element").getBoundingClientRect();
- if(video.videoWidth<2||video.videoHeight<2||r.width<=0)return;
- const scale=Math.min(r.width/video.videoWidth,r.height/video.videoHeight);
- const drawW=video.videoWidth*scale,drawH=video.videoHeight*scale;
- marker.style.left=(r.left-outer.left+(r.width-drawW)/2+x/w*drawW)+'px';
- marker.style.top=(r.top-outer.top+(r.height-drawH)/2+y/h*drawH)+'px';
+ ackGameSize={w,h};
+ const marker=$("p2NativeCursor"),bounds=videoClientBounds();
+ const outer=$("mouse-element").getBoundingClientRect();
+ if(!bounds)return;
+ marker.style.left=(bounds.left-outer.left+x/w*bounds.width)+'px';
+ marker.style.top=(bounds.top-outer.top+y/h*bounds.height)+'px';
  marker.hidden=true;marker.classList.toggle("inactive",(flags&1)===0);
  $("p2AckStatus").textContent=(flags&1)?(ko?'P2: 게임 커서 확인됨':'P2: game accepted'):
    (ko?'P2: 게임 수신 · 입력 모드 비활성':'P2: received, input mode inactive');
