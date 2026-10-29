@@ -110,3 +110,6 @@ assert(js.includes("document.hidden"),"Do not diagnose background-tab throttling
   assert.equal(cropped.width,683);assert.equal(cropped.height,384);
   console.log("PASS: ACK-verified client-area pointer coordinates with WGC chrome and GPU cropping");
 }
+
+assert(js.includes('send(keyboard, "Escape_1")'),"P2 Escape must be forwarded to guarded game-side close, not disconnect");
+assert(js.includes('heldKeys.add("Escape")'),"P2 Escape down/up symmetry required");
