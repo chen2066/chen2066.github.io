@@ -66,3 +66,7 @@ body.reflex-theater #mouse-element{height:min(calc(100vh - 105px),calc(94vw * 9 
 #p2NativeCursor.inactive{opacity:.4}
 #p2AckStatus{font:11px Consolas,monospace;color:#ebc791;white-space:nowrap}
 body.letter #p2AckStatus{color:#6d4925}
+
+/* V3: video-only cursor display, no redundant browser reticles. */
+#p2VirtualPointer,#p2VirtualCursor,#p2NativeCursor{display:none!important;pointer-events:none!important}
+#mouse-element.p2-pointer-active,#mouse-element.p2-pointer-active *{cursor:none!important}
