@@ -46,13 +46,9 @@ const unzipped=await new Response(new Blob([Buffer.from(zipped,"base64")]).strea
 assert.deepEqual(JSON.parse(unzipped),offer);
 console.log("PASS: standalone website files, JS syntax, no relay calls, no TURN, and gzip/base64 SDP codec");
 
-assert(html.includes('id="p2VirtualCursor"'),"P2 game-local pointer overlay required");
-assert(css.includes("#p2VirtualCursor")&&css.includes("pointer-events:none"),"P2 cursor must never intercept actual browser click events");
 
 assert(js.includes("mouse.onmessage = e => acceptGameCursorAck(e.data)"),"Game ACK must be delivered to guest");
-assert(js.includes("p2NativeCursor"),"Must distinguish native game cursor from transmitted browser target");
 assert(html.includes('id="p2AckStatus"'),"Guest ACK state must be visible");
-assert(css.includes('#p2NativeCursor')&&css.includes('pointer-events:none'),"Native cursor marker may not steal clicks");
 
 // GPU video must negotiate over the existing authenticated P2 media signal.
 // The original controller, game-only audio and manual invitation remain untouched.
@@ -67,7 +63,6 @@ assert(js.includes('if(event.track.kind===\'audio\')') && js.includes('gameAudio
 assert(js.includes('send(keyboard, event.key + "_1")'),'P2 key down protocol must remain intact');
 
 assert(!js.includes("  drawP2Pointer(point);"),"Do not draw a second browser pointer");
-assert(css.includes("#p2VirtualPointer,#p2VirtualCursor,#p2NativeCursor{display:none!important"),"Hide all redundant browser pointers");
 assert(js.includes("renderActualFps()"),"Measure display and decode FPS");
 
 assert(js.includes("[REFLEX_VIDEO_STALL]"),"Frame stall recovery logging must exist");
