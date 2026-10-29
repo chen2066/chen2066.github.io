@@ -55,3 +55,15 @@ assert(js.includes("mouse.onmessage = e => acceptGameCursorAck(e.data)"),"Game A
 assert(js.includes("p2NativeCursor"),"Must distinguish native game cursor from transmitted browser target");
 assert(html.includes('id="p2AckStatus"'),"Guest ACK state must be visible");
 assert(css.includes('#p2NativeCursor')&&css.includes('pointer-events:none'),"Native cursor marker may not steal clicks");
+
+// GPU video must negotiate over the existing authenticated P2 media signal.
+// The original controller, game-only audio and manual invitation remain untouched.
+assert(js.includes('DR_GPU_GUEST_V2_20261029'),'Published standalone guest must include native GPU implementation');
+assert(js.includes('reflex-gpu-capability'),'Published guest must announce native GPU support to host');
+assert(js.indexOf('reflex-gpu-capability')<js.lastIndexOf('send(streamSignal, "{}")'),'GPU capability must precede capture request');
+assert(js.includes('message.role === "gpu-host"'),'Native H264 offer must be accepted before legacy-host filtering');
+assert(js.includes('new RTCPeerConnection({iceServers: STUN_ONLY})'),'GPU H264 receiver must remain P2P and STUN-only');
+assert(js.includes('role:"gpu-client"'),'Guest must signal native SDP answer and ICE back to host');
+assert(js.includes('gpuVideoTrack = event.track'),'Native video must replace only visual track');
+assert(js.includes('if(event.track.kind===\'audio\')') && js.includes('gameAudio.srcObject=new MediaStream([event.track])'),'Standalone game audio must remain independent');
+assert(js.includes('send(keyboard, key + "_1")'),'P2 key down protocol must remain intact');
