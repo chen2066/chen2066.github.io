@@ -44,12 +44,15 @@ function audioState(){
 }
 let fpsSince=0,lastPresented=0,fpsActive=false;
 let actualDisplayedFps=0,actualDecodedFps=0;
+// Video recovery never closes P2 keyboard/mouse. It does not touch the game DLL.
+let lastVideoFrameAt=0,lastVideoRecoveryAt=0,videoRecoveryAttempts=0;
 function renderActualFps(){
   const shown=actualDisplayedFps>0?actualDisplayedFps.toFixed(1):"--";
   const decoded=actualDecodedFps>0?actualDecodedFps.toFixed(1):"--";
   $("actualFps").textContent="표시 "+shown+" / 디코딩 "+decoded+" FPS · "+video.videoWidth+"×"+video.videoHeight;
 }
 function frameMetrics(timestamp,metadata){
+  lastVideoFrameAt=Date.now();
   if(!fpsSince){fpsSince=timestamp;lastPresented=metadata.presentedFrames;}
   if(timestamp-fpsSince>=1000){
     const fps=Math.max(0,Math.round((metadata.presentedFrames-lastPresented)*10000/(timestamp-fpsSince))/10);
@@ -63,7 +66,7 @@ function frameMetrics(timestamp,metadata){
 }
 function startFrameMetrics(){
   if(fpsActive||typeof video.requestVideoFrameCallback!=='function')return;
-  fpsActive=true;fpsSince=0;lastPresented=0;
+  fpsActive=true;fpsSince=0;lastPresented=0;lastVideoFrameAt=Date.now();
   video.requestVideoFrameCallback(frameMetrics);
 }
 $("expandVideo").addEventListener("click",()=>{
@@ -180,7 +183,7 @@ function resetMedia() {
   gameAudio.pause();gameAudio.srcObject=null;
   remoteAudioTrack=false;clearInterval(audioStatTimer);audioStatTimer=undefined;
   audioPackets=0;audioState();
-  fpsActive=false;fpsSince=0;actualDisplayedFps=0;actualDecodedFps=0;$("actualFps").textContent="FPS --";
+  fpsActive=false;fpsSince=0;actualDisplayedFps=0;actualDecodedFps=0;lastVideoFrameAt=0;$("actualFps").textContent="FPS --";
   $("awaitStream").hidden = false;
   $("retryVideo").hidden = true;
 }
@@ -455,6 +458,7 @@ async function startMedia() {
     }
     // Keep video muted; only the dedicated element outputs remote game audio.
     video.muted=true;
+    lastVideoFrameAt=Date.now();
     // A track event only means SDP negotiation, not that a decoded frame
     // arrived. Retain the waiting overlay until the video actually plays.
     const revealVideo = () => {
@@ -575,6 +579,22 @@ async function onMediaSignal(event) {
     if (active) startMedia();
   }
 }
+// Recover stalled game video without disconnecting the P2 control peer.
+// Only try twice, with a 25s cooldown; hidden browser tabs are not diagnosed
+// as stalls because requestVideoFrameCallback may be throttled.
+setInterval(()=>{
+  if(!active||busy||document.hidden||!mediaPeer||!video.srcObject||
+     streamSignal?.readyState!=="open"||!lastVideoFrameAt)return;
+  const now=Date.now();
+  if(now-lastVideoFrameAt<12000||now-lastVideoRecoveryAt<25000||videoRecoveryAttempts>=2)return;
+  videoRecoveryAttempts++;
+  lastVideoRecoveryAt=now;
+  console.warn("[REFLEX_VIDEO_STALL] no presented frame for 12s; media-only reconnect attempt="+videoRecoveryAttempts);
+  $("peerStatus").textContent="video: reconnecting after frame stall";
+  resetMedia();
+  void startMedia();
+},4000);
+
 async function prepare() {
   if (busy) return;
   busy = true; $("error").hidden = true; $("retry").hidden = true;
