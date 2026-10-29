@@ -12,6 +12,14 @@ const STUN_ONLY = [{urls: ["stun:stun.l.google.com:19302", "stun:stun.cloudflare
 const MAX_CODE_LENGTH = 132000;
 let peer = null;
 let mediaPeer = null;
+// Independent Pion H.264 receiver. Never changes the controller or game-audio peer.
+let gpuPeer = null;
+let gpuVideoTrack = null;
+let fallbackVideoTrack = null;
+let gpuStatsTimer = null;
+let gpuConnectTimeout = null;
+let gpuEpoch = 0;
+let pendingGpuCandidates = [];
 let keyboard = null;
 let mouse = null;
 let streamSignal = null;
@@ -152,6 +160,8 @@ function send(channel, value) {
   if (channel && channel.readyState === "open") channel.send(value);
 }
 function resetMedia() {
+  resetGpuVideo(false);
+  fallbackVideoTrack = null;
   clearInterval(streamRequest);
   streamRequest = null;
   pendingMediaCandidates = [];
@@ -314,6 +324,99 @@ async function ensureSound(){
  }
  audioState();
 }
+
+const REFLEX_GPU_GUEST_PROTOCOL = "DR_GPU_GUEST_V2_20261029";
+function resetGpuVideo(restore = true) {
+  ++gpuEpoch;
+  if (gpuStatsTimer) clearInterval(gpuStatsTimer);
+  if (gpuConnectTimeout) clearTimeout(gpuConnectTimeout);
+  gpuStatsTimer = null; gpuConnectTimeout = null;
+  const old = gpuPeer; gpuPeer = null;
+  if (old) old.close();
+  if (gpuVideoTrack) media.removeTrack(gpuVideoTrack);
+  gpuVideoTrack = null;
+  pendingGpuCandidates = [];
+  if (restore && fallbackVideoTrack?.readyState === "live") {
+    if (!media.getTracks().some(t => t.id === fallbackVideoTrack.id)) media.addTrack(fallbackVideoTrack);
+    video.srcObject = media;
+    $("peerStatus").textContent = "video: legacy fallback";
+  }
+}
+async function handleGpuSignal(message) {
+  if (!active || streamSignal?.readyState !== "open") return;
+  if (message.type === "candidate" && message.candidate) {
+    if (gpuPeer?.remoteDescription) {
+      try { await gpuPeer.addIceCandidate(message.candidate); } catch (e) { console.warn("[REFLEX_GPU] candidate rejected",e); }
+    } else if (pendingGpuCandidates.length < 64) pendingGpuCandidates.push(message.candidate);
+    return;
+  }
+  if (message.type !== "offer" || !message.offer || gpuPeer) return;
+  const gpu = new RTCPeerConnection({iceServers: STUN_ONLY});
+  gpuPeer = gpu; const epoch = ++gpuEpoch;
+  $("peerStatus").textContent = "video: GPU H.264 negotiating";
+  console.info("[REFLEX_GPU] "+REFLEX_GPU_GUEST_PROTOCOL+" received H264 offer");
+  gpu.addEventListener("icecandidate", event => {
+    if (gpuPeer !== gpu || !event.candidate) return;
+    send(streamSignal, JSON.stringify({type:"candidate", role:"gpu-client", candidate:event.candidate.toJSON()}));
+  });
+  gpu.addEventListener("track", event => {
+    if (gpuPeer !== gpu || event.track.kind !== "video") return;
+    fallbackVideoTrack = media.getVideoTracks().find(t=>t!==gpuVideoTrack) || fallbackVideoTrack;
+    for(const old of media.getVideoTracks()) media.removeTrack(old);
+    gpuVideoTrack = event.track;
+    media.addTrack(event.track);
+    video.srcObject = media;
+    video.muted = true;
+    void video.play().catch(e=>console.warn("[REFLEX_GPU] autoplay blocked",e));
+    $("awaitStream").hidden = true;
+    $("peerStatus").textContent = "video: GPU H.264 decoded";
+    startFrameMetrics();
+    console.info("[REFLEX_GPU] decoded H264 track connected");
+    event.track.addEventListener("ended",()=>{
+      if(gpuPeer === gpu) resetGpuVideo(true);
+    },{once:true});
+  });
+  gpu.addEventListener("connectionstatechange",()=>{
+    if(gpuPeer!==gpu)return;
+    console.info("[REFLEX_GPU] peer state="+gpu.connectionState);
+    if(gpu.connectionState==="failed"||gpu.connectionState==="closed"){
+      resetGpuVideo(true);
+    }
+  });
+  gpuConnectTimeout = setTimeout(()=>{
+    if(gpuPeer===gpu && !gpuVideoTrack){
+      console.warn("[REFLEX_GPU] no decoded video track in 15s");
+      resetGpuVideo(true);
+    }
+  },15000);
+  gpuStatsTimer=setInterval(()=>{
+    if(gpuPeer!==gpu||epoch!==gpuEpoch)return;
+    void gpu.getStats().then(stats=>{
+      stats.forEach(r=>{
+        if(r.type==="inbound-rtp"&&r.kind==="video"){
+          const count=Number(r.jitterBufferEmittedCount||0);
+          const jitterMs=count>0?Math.round(1000*Number(r.jitterBufferDelay||0)/count):0;
+          console.info("[REFLEX_GPU] guest framesDecoded="+Number(r.framesDecoded||0)+
+            " fps="+Number(r.framesPerSecond||0)+" jitterMs="+jitterMs);
+        }
+      });
+    }).catch(()=>{});
+  },5000);
+  try{
+    await gpu.setRemoteDescription(message.offer);
+    for(const candidate of pendingGpuCandidates.splice(0)){
+      try{ await gpu.addIceCandidate(candidate); }catch(e){console.warn("[REFLEX_GPU] queued ICE",e);}
+    }
+    const answer=await gpu.createAnswer();
+    await gpu.setLocalDescription(answer);
+    send(streamSignal, JSON.stringify({type:"answer", role:"gpu-client",answer:gpu.localDescription.toJSON()}));
+    console.info("[REFLEX_GPU] native H264 SDP answer transmitted");
+  }catch(err){
+    console.warn("[REFLEX_GPU] native H264 negotiation failed",err);
+    if(gpuPeer===gpu)resetGpuVideo(true);
+  }
+}
+
 async function startMedia() {
   if (mediaPeer || !active || streamSignal?.readyState !== "open") return;
   state(ko ? "협력자 연결됨 · 원정의 광경을 요청하는 중..." : "P2 connected · requesting game video...", true);
@@ -332,6 +435,10 @@ async function startMedia() {
   const combined = media;
   current.addEventListener("track", event => {
     if (mediaPeer !== current) return;
+    if (event.track.kind === 'video' && gpuVideoTrack?.readyState === 'live') {
+      fallbackVideoTrack = event.track;
+      return;
+    }
     if (!combined.getTracks().some(track => track.id === event.track.id))
       combined.addTrack(event.track);
     video.srcObject = combined;
@@ -391,6 +498,9 @@ async function startMedia() {
     if (attempts === 4 || attempts === 12) {
       state(ko ? "호스트가 게임 창을 캡처할 때까지 기다리는 중..." : "Waiting for host game capture...", true);
     }
+    // This exact capability packet is recognized by the native Windows host.
+    // Signal first on the same ordered data channel, then request the media offer.
+    send(streamSignal, '{"type":"reflex-gpu-capability","supported":true}');
     send(streamSignal, "{}");
   };
   streamRequest = setInterval(ready, 1500);
@@ -400,6 +510,10 @@ async function onMediaSignal(event) {
   if (!mediaPeer) return;
   let message;
   try { message = JSON.parse(event.data); } catch { return; }
+  if (message.role === "gpu-host") {
+    await handleGpuSignal(message);
+    return;
+  }
   if (message.role !== "host") return;
   if (message.type === "status") {
     mediaStage = typeof message.stage === "string" ? message.stage : "";
