@@ -66,4 +66,4 @@ assert(js.includes('new RTCPeerConnection({iceServers: STUN_ONLY})'),'GPU H264 r
 assert(js.includes('role:"gpu-client"'),'Guest must signal native SDP answer and ICE back to host');
 assert(js.includes('gpuVideoTrack = event.track'),'Native video must replace only visual track');
 assert(js.includes('if(event.track.kind===\'audio\')') && js.includes('gameAudio.srcObject=new MediaStream([event.track])'),'Standalone game audio must remain independent');
-assert(js.includes('send(keyboard, key + "_1")'),'P2 key down protocol must remain intact');
+assert(js.includes('send(keyboard, event.key + "_1")'),'P2 key down protocol must remain intact');
