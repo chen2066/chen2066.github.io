@@ -14,7 +14,6 @@ assert(js.includes('DecompressionStream("gzip")'));
 assert(js.includes("video.getBoundingClientRect()"),"Pointer mapping must use real video bounds");
 assert(js.includes("sendMove(event,true)"),"Click must send accurate video pointer first");
 assert(html.includes('id="p2VirtualPointer"'),"P2 browser pointer marker must exist");
-assert(js.includes("drawP2Pointer(point)"),"P2 cursor must reflect transmitted normalized game coordinates");
 assert(css.includes("pointer-events:none"),"P2 cursor overlay must never intercept clicks");
 assert(js.includes("v.setUint16(5,10000)"),"Normalized dimensions must match game IPC");
 assert(html.includes('id="guestLetter"')&&html.includes('id="guestClassic"'),"Both themes must be selectable");
@@ -49,7 +48,6 @@ console.log("PASS: standalone website files, JS syntax, no relay calls, no TURN,
 
 assert(html.includes('id="p2VirtualCursor"'),"P2 game-local pointer overlay required");
 assert(css.includes("#p2VirtualCursor")&&css.includes("pointer-events:none"),"P2 cursor must never intercept actual browser click events");
-assert(js.includes('indicator.style.left='),"Visible P2 marker must follow normalized video pointer");
 
 assert(js.includes("mouse.onmessage = e => acceptGameCursorAck(e.data)"),"Game ACK must be delivered to guest");
 assert(js.includes("p2NativeCursor"),"Must distinguish native game cursor from transmitted browser target");
@@ -67,3 +65,7 @@ assert(js.includes('role:"gpu-client"'),'Guest must signal native SDP answer and
 assert(js.includes('gpuVideoTrack = event.track'),'Native video must replace only visual track');
 assert(js.includes('if(event.track.kind===\'audio\')') && js.includes('gameAudio.srcObject=new MediaStream([event.track])'),'Standalone game audio must remain independent');
 assert(js.includes('send(keyboard, event.key + "_1")'),'P2 key down protocol must remain intact');
+
+assert(!js.includes("  drawP2Pointer(point);"),"Do not draw a second browser pointer");
+assert(css.includes("#p2VirtualPointer,#p2VirtualCursor,#p2NativeCursor{display:none!important"),"Hide all redundant browser pointers");
+assert(js.includes("renderActualFps()"),"Measure display and decode FPS");
